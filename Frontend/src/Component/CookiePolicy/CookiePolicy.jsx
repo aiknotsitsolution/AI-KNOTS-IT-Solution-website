@@ -1,19 +1,14 @@
-
-
 import React, { useState, useEffect } from "react";
 
-const CookiePolicy = () =>
-{
+const CookiePolicy = () => {
   const lastUpdated = "March 24, 2026";
 
   const [isDark, setIsDark] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
 
-  useEffect(() =>
-  {
-    const observer = new MutationObserver(() =>
-    {
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains("dark"));
     });
     observer.observe(document.documentElement, {
@@ -51,7 +46,6 @@ const CookiePolicy = () =>
           >
             Cookie Policy
           </h1>
-
         </div>
 
         <div className="prose prose-invert max-w-none text-[15.8px] leading-relaxed space-y-12">
@@ -196,8 +190,9 @@ const CookiePolicy = () =>
             </p>
 
             <div
-              className={`p-8 md:p-10 rounded-3xl ${cardClass} border ${isDark ? "border-[#8B6B4A]/30" : "border-[#E8D9C2]"
-                }`}
+              className={`p-8 md:p-10 rounded-3xl ${cardClass} border ${
+                isDark ? "border-[#8B6B4A]/30" : "border-[#E8D9C2]"
+              }`}
             >
               <div className="flex flex-col sm:flex-row gap-8 text-sm">
                 <div>
@@ -215,7 +210,7 @@ const CookiePolicy = () =>
                     href="tel:+917869636070"
                     className={`hover:underline ${accentClass}`}
                   >
-                    +91 78696 36070
+                    +91 9630466070
                   </a>
                 </div>
                 <div>

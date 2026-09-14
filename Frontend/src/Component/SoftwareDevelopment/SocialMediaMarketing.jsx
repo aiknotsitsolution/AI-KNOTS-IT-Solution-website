@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
-import
-{
+import {
   Facebook,
   Instagram,
   Linkedin,
@@ -154,8 +153,7 @@ const faqs = [
   },
 ];
 
-export default function SocialMediaMarketing()
-{
+export default function SocialMediaMarketing() {
   const navigate = useNavigate();
 
   const [isDark, setIsDark] = useState(() =>
@@ -165,10 +163,8 @@ export default function SocialMediaMarketing()
   const [openFaq, setOpenFaq] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
-  useEffect(() =>
-  {
-    const observer = new MutationObserver(() =>
-    {
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains("dark"));
     });
     observer.observe(document.documentElement, {
@@ -186,8 +182,9 @@ export default function SocialMediaMarketing()
     ? "bg-gray-900/70 backdrop-blur-sm border border-gray-800 hover:border-primary/60 hover:shadow-[#8B6B4A]/30"
     : "bg-white border border-gray-200 hover:border-primary hover:shadow-2xl";
 
-  const buttonClass = `px-12 py-6 rounded-full text-xl font-bold flex items-center gap-3 group shadow-xl ${isDark ? "btn-accent" : "btn-accent"
-    }`;
+  const buttonClass = `px-12 py-6 rounded-full text-xl font-bold flex items-center gap-3 group shadow-xl ${
+    isDark ? "btn-accent" : "btn-accent"
+  }`;
 
   const serviceLink =
     "font-bold text-[#8B6B4A] hover:text-[#6B4F2A] transition-colors duration-200";
@@ -247,8 +244,9 @@ export default function SocialMediaMarketing()
 
             <motion.p
               variants={fadeInUp}
-              className={`text-lg md:text-xl max-w-5xl mx-auto leading-relaxed mb-12 ${isDark ? "text-gray-300" : "text-white/90"
-                }`}
+              className={`text-lg md:text-xl max-w-5xl mx-auto leading-relaxed mb-12 ${
+                isDark ? "text-gray-300" : "text-white/90"
+              }`}
             >
               At{" "}
               <span className="font-semibold text-[#8B6B4A]">
@@ -263,10 +261,7 @@ export default function SocialMediaMarketing()
                 Social Media Marketing
               </HashLink>{" "}
               agencies in{" "}
-              <Link
-                to="/contact"
-                className={serviceLink}
-              >
+              <Link to="/contact" className={serviceLink}>
                 Bhopal
               </Link>
               . We create powerful{" "}
@@ -301,10 +296,11 @@ export default function SocialMediaMarketing()
               </button>
 
               <button
-                className={`px-12 py-6 border-2 border-[#8B6B4A] rounded-full text-xl font-bold transition-all ${isDark
-                  ? "text-accent hover:bg-black/60 hover:border-[#8B6B4A]"
-                  : "text-muted hover:bg-muted border-[#8B6B4A] hover:border-[#8B6B4A] hover:text-white shadow-lg"
-                  }`}
+                className={`px-12 py-6 border-2 border-[#8B6B4A] rounded-full text-xl font-bold transition-all ${
+                  isDark
+                    ? "text-accent hover:bg-black/60 hover:border-[#8B6B4A]"
+                    : "text-muted hover:bg-muted border-[#8B6B4A] hover:border-[#8B6B4A] hover:text-white shadow-lg"
+                }`}
               >
                 Free Social Media Audit
               </button>
@@ -464,7 +460,12 @@ export default function SocialMediaMarketing()
             <motion.h3
               className={`text-3xl font-bold text-center mb-10 ${isDark ? "text-[#9F714E]" : "text-[#9F714E]"}`}
             >
-              Areas We Serve in <span className={`${isDark ? "text-[#9F714E]" : "text-[#9F714E]"}`}>Bhopal</span>
+              Areas We Serve in{" "}
+              <span
+                className={`${isDark ? "text-[#9F714E]" : "text-[#9F714E]"}`}
+              >
+                Bhopal
+              </span>
             </motion.h3>
 
             <div className="flex flex-wrap justify-center gap-4">
@@ -510,10 +511,11 @@ export default function SocialMediaMarketing()
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
-              className={`px-16 py-7 rounded-full text-2xl font-bold transition-all ${isDark
-                ? "bg-gradient-to-r from-[#8B6B4A] to-[#8B6B4A] hover:from-[#8B6B4A] hover:to-[#8B6B4A]"
-                : "bg-[#8B6B4A] hover:bg-[#8B6B4A] text-white"
-                }`}
+              className={`px-16 py-7 rounded-full text-2xl font-bold transition-all ${
+                isDark
+                  ? "bg-gradient-to-r from-[#8B6B4A] to-[#8B6B4A] hover:from-[#8B6B4A] hover:to-[#8B6B4A]"
+                  : "bg-[#8B6B4A] hover:bg-[#8B6B4A] text-white"
+              }`}
             >
               <button onClick={() => navigate("/contact")}>
                 Get Started Today →
@@ -523,7 +525,7 @@ export default function SocialMediaMarketing()
             <p
               className={`mt-10 text-lg ${isDark ? "text-gray-400" : "text-gray-600"}`}
             >
-              📞 +91 78696 36070 &nbsp; | &nbsp; Support@aiknotsit.com
+              📞 +91 9630466070 &nbsp; | &nbsp; Support@aiknotsit.com
             </p>
           </div>
         </section>
@@ -538,8 +540,9 @@ export default function SocialMediaMarketing()
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className={`text-4xl md:text-5xl font-bold text-center mb-12 ${isDark ? "text-white" : "text-[#573010]"
-                }`}
+              className={`text-4xl md:text-5xl font-bold text-center mb-12 ${
+                isDark ? "text-white" : "text-[#573010]"
+              }`}
             >
               Frequently Asked <span className="text-[#8B6B4A]">Questions</span>
             </motion.h2>
@@ -548,20 +551,24 @@ export default function SocialMediaMarketing()
               {faqs.map((faq, idx) => (
                 <details
                   key={idx}
-                  className={`group rounded-xl p-6 border ${isDark
+                  className={`group rounded-xl p-6 border ${
+                    isDark
                       ? "bg-gray-900 border-gray-800"
                       : "bg-white border-gray-100"
-                    }`}
+                  }`}
                 >
                   <summary
-                    className={`font-semibold text-lg cursor-pointer flex justify-between items-center gap-4 ${isDark ? "text-white" : "text-[#573010]"
-                      }`}
+                    className={`font-semibold text-lg cursor-pointer flex justify-between items-center gap-4 ${
+                      isDark ? "text-white" : "text-[#573010]"
+                    }`}
                   >
                     {faq.q}
                     <ChevronDown className="w-5 h-5 transition-transform duration-300 group-open:rotate-180 flex-shrink-0" />
                   </summary>
 
-                  <p className={`mt-4 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  <p
+                    className={`mt-4 ${isDark ? "text-gray-400" : "text-gray-600"}`}
+                  >
                     {faq.a}
                   </p>
                 </details>

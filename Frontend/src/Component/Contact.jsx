@@ -273,7 +273,7 @@ const Contact = () => {
                             href="tel:+917869636070"
                             className="hover:text-accent transition"
                           >
-                            +91 78696 36070
+                            +91 9630466070
                           </a>
                         </p>
                       </div>

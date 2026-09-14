@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from "react";
 
 const TermsOfService = () => {
@@ -48,7 +46,6 @@ const TermsOfService = () => {
           >
             Terms of Service
           </h1>
-         
         </div>
 
         <div className="prose prose-invert max-w-none text-[15.8px] leading-relaxed space-y-12">
@@ -260,7 +257,7 @@ const TermsOfService = () => {
                   href="tel:+917869636070"
                   className={`hover:underline ${accentClass}`}
                 >
-                  +91 78696 36070
+                  +91 9630466070
                 </a>
               </div>
               <div>

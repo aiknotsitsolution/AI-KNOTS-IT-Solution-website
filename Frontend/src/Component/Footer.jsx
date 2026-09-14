@@ -240,7 +240,7 @@ const Footer = () => {
                     href="tel:+917869636070"
                     className={`transition-colors ${isDark ? "hover:text-[#D9C5B5]" : "hover:text-[#8B6B4A]"}`}
                   >
-                    +91 78696 36070
+                    +91 9630466070
                   </a>
                 </li>
 
