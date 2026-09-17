@@ -404,28 +404,28 @@ const Home = () => {
     },
   ];
 
-  const faqs = [
-    {
-      q: "AI KNOTS is software to streamline and automate your marketing and business operations.",
-      a: "AI KNOTS helps businesses automate repetitive tasks...",
-    },
-    {
-      q: "Currently, AI KNOTS supports WhatsApp and Emails...",
-      a: "The platform integrates seamlessly with WhatsApp and Email services...",
-    },
-    {
-      q: "AI KNOTS can be used by small to medium-sized businesses...",
-      a: "From manufacturing to retail, healthcare to finance...",
-    },
-    {
-      q: "Yes, AI KNOTS can integrate with other systems...",
-      a: "AI KNOTS offers API integrations...",
-    },
-    {
-      q: "AI KNOTS offers proper customer support...",
-      a: "Our dedicated support team provides training...",
-    },
-  ];
+ const faqs = [
+  {
+    q: "What is AI KNOTS and how does it help businesses?",
+    a: "AI KNOTS is an AI-powered automation platform that streamlines marketing and business operations. It helps companies automate repetitive tasks, manage WhatsApp and Email conversations, improve response times, and scale customer engagement efficiently.",
+  },
+  {
+    q: "Which communication channels does AI KNOTS support?",
+    a: "AI KNOTS currently supports WhatsApp and Email integration. Businesses can send automated messages, handle customer queries, run marketing campaigns, and manage all conversations from one unified dashboard.",
+  },
+  {
+    q: "Who should use AI KNOTS?",
+    a: "AI KNOTS is designed for small and medium-sized businesses across industries like manufacturing, retail, healthcare, finance, education, and services. Any company that uses WhatsApp or Email for customer communication can benefit from it.",
+  },
+  {
+    q: "Can AI KNOTS integrate with my existing tools?",
+    a: "Yes. AI KNOTS offers powerful API integrations that allow seamless connection with CRMs, ERPs, e-commerce platforms, and other business tools, ensuring smooth data flow and complete automation.",
+  },
+  {
+    q: "Does AI KNOTS provide customer support and training?",
+    a: "Absolutely. AI KNOTS comes with dedicated customer support, onboarding assistance, training sessions, and detailed documentation to help your team quickly adopt the platform and achieve maximum results.",
+  },
+];
 
   const getFilteredFeatures = () =>
     allFeatures.filter((f) => f.category === activeFeatureTab);
