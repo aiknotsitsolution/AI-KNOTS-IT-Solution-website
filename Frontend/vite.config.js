@@ -1,18 +1,17 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
-    minify: "terser",
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
+    target: "es2020",
+    minify: "esbuild",
+    cssMinify: "esbuild",
+    cssCodeSplit: true,
+    sourcemap: false,
+    assetsInlineLimit: 4096,
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -38,7 +37,6 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 1000,
-    reportCompressedSize: false,
   },
   optimizeDeps: {
     include: [

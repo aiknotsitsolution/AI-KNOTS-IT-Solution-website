@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { Helmet } from "react-helmet-async";
 import { Image as ImageIcon, AlertCircle } from "lucide-react";
-const Gallery = () =>
-{
+const Gallery = () => {
   const { isDark } = useTheme(); // ← Theme Hook Added
 
   const [images, setImages] = useState([]);
@@ -21,23 +20,18 @@ const Gallery = () =>
     "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=800&q=80",
   ];
 
-  useEffect(() =>
-  {
-    const fetchImages = async () =>
-    {
-      try
-      {
+  useEffect(() => {
+    const fetchImages = async () => {
+      try {
         const response = await fetch("https://api.aiknotsit.com/api/gallery");
 
-        if (!response.ok)
-        {
+        if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const result = await response.json();
 
-        if (!result.success || !Array.isArray(result.data))
-        {
+        if (!result.success || !Array.isArray(result.data)) {
           throw new Error("Invalid API response format");
         }
 
@@ -47,12 +41,10 @@ const Gallery = () =>
           .filter((url) => typeof url === "string" && url.trim() !== "");
 
         setImages(allImageUrls);
-      } catch (err)
-      {
+      } catch (err) {
         console.error("Gallery fetch error:", err);
         setError(err.message || "Failed to load gallery images");
-      } finally
-      {
+      } finally {
         setLoading(false);
       }
     };
@@ -67,8 +59,7 @@ const Gallery = () =>
   const bodyClass = isDark ? "text-gray-300" : "text-gray-700";
   const accentClass = isDark ? "text-[#8B6B4A]" : "text-gray-700";
 
-  if (loading)
-  {
+  if (loading) {
     return (
       // <div
       //   className={`min-h-screen flex items-center justify-center transition-colors duration-700
@@ -81,8 +72,9 @@ const Gallery = () =>
       // </div>
 
       <div
-        className={`min-h-screen flex items-center justify-center ${isDark ? "bg-black text-white" : "bg-gray-50 text-gray-900"
-          }`}
+        className={`min-h-screen flex items-center justify-center ${
+          isDark ? "bg-black text-white" : "bg-gray-50 text-gray-900"
+        }`}
       >
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#8B6B4A]/30 border-t-[#8B6B4A] rounded-full animate-spin mx-auto mb-6"></div>
@@ -160,7 +152,6 @@ const Gallery = () =>
     //   </div>
     // </>
 
-
     <>
       <Helmet>
         <title>Project Gallery | AI Knots IT Solution</title>
@@ -175,8 +166,9 @@ const Gallery = () =>
       </Helmet>
 
       <main
-        className={`min-h-screen transition-colors duration-700 ${isDark ? "bg-black text-white" : "bg-gray-50 text-gray-900"
-          }`}
+        className={`min-h-screen transition-colors duration-700 ${
+          isDark ? "bg-black text-white" : "bg-gray-50 text-gray-900"
+        }`}
       >
         {/* Hero */}
         <section className="px-4 pt-20 pb-14 md:px-8">
@@ -187,16 +179,17 @@ const Gallery = () =>
             </div>
 
             <h1
-              className={`text-4xl md:text-6xl lg:text-7xl font-black mb-6 ${isDark ? "text-white" : "text-[#3d220e]"
-                }`}
+              className={`text-4xl md:text-6xl lg:text-7xl font-black mb-6 ${
+                isDark ? "text-white" : "text-[#3d220e]"
+              }`}
             >
-              Our Creative{" "}
-              <span className="text-[#8B6B4A]">Work Gallery</span>
+              Our Creative <span className="text-[#8B6B4A]">Work Gallery</span>
             </h1>
 
             <p
-              className={`text-lg md:text-xl max-w-3xl mx-auto leading-relaxed ${isDark ? "text-gray-300" : "text-[#5c4635]"
-                }`}
+              className={`text-lg md:text-xl max-w-3xl mx-auto leading-relaxed ${
+                isDark ? "text-gray-300" : "text-[#5c4635]"
+              }`}
             >
               Explore our collection of website, branding, digital marketing,
               and IT project visuals.
@@ -225,10 +218,11 @@ const Gallery = () =>
                 <div
                   key={index}
                   className={`group relative w-full overflow-hidden rounded-2xl border transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl
-          ${isDark
-                      ? "bg-gray-900 border-gray-800 hover:border-[#8B6B4A]/60"
-                      : "bg-white border-gray-200 hover:border-[#8B6B4A]/60 shadow-md"
-                    }`}
+          ${
+            isDark
+              ? "bg-gray-900 border-gray-800 hover:border-[#8B6B4A]/60"
+              : "bg-white border-gray-200 hover:border-[#8B6B4A]/60 shadow-md"
+          }`}
                 >
                   <div
                     className="relative h-72 overflow-hidden cursor-zoom-in"
@@ -236,7 +230,7 @@ const Gallery = () =>
                       setSelectedImage(
                         src.startsWith("http")
                           ? `${src}?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=100`
-                          : `https://api.aiknotsit.com${src}`
+                          : `https://api.aiknotsit.com${src}`,
                       )
                     }
                   >
@@ -249,8 +243,7 @@ const Gallery = () =>
                       alt={`Gallery image ${index + 1}`}
                       className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-110 cursor-zoom-in"
                       loading="lazy"
-                      onError={(e) =>
-                      {
+                      onError={(e) => {
                         e.target.src =
                           fallbackImages[index % fallbackImages.length];
                         e.target.alt = "Fallback image";
@@ -299,7 +292,6 @@ const Gallery = () =>
             />
           </div>
         )}
-
       </main>
     </>
   );
