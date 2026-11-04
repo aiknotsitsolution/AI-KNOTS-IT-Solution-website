@@ -14,14 +14,29 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import axios from "axios";
+import { useDispatch, useSelector } from "react-redux";
 import clsx from "clsx";
 import brandMark from "../assets/brand-mark.webp";
+import { setCurrentUser } from "../Pages/auth/authSlice";
+
+const API_URL = import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
 
 // ────────────────────────────────────────────────
 const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/users", label: "Users & access", icon: UsersRound, adminOnly: true },
-  { path: "/register", label: "Register user", icon: UserPlus, adminOnly: true },
+  {
+    path: "/users",
+    label: "Users & access",
+    icon: UsersRound,
+    adminOnly: true,
+  },
+  {
+    path: "/register",
+    label: "Register user",
+    icon: UserPlus,
+    adminOnly: true,
+  },
 
   {
     label: "Blogview",
@@ -50,7 +65,11 @@ const navItems = [
       { path: "/admin/jobs/new", label: "New Job", icon: BarChart3 },
       { path: "/admin/jobs", label: "Manage Jobs", icon: BarChart3 },
       { path: "/admin/jobs/category", label: "Job Category", icon: BarChart3 },
-      { path: "/admin/jobs/applications", label: "Job Applications", icon: BarChart3 },
+      {
+        path: "/admin/jobs/applications",
+        label: "Job Applications",
+        icon: BarChart3,
+      },
     ],
   },
 
@@ -88,20 +107,17 @@ const navItems = [
       },
     ],
   },
-    
 
   { path: "/gallery", label: "Gallery", icon: GalleryHorizontal },
 
-
-    {
+  {
     label: "Contact",
     icon: BarChart3,
     children: [
       { path: "/contact", label: "Contact", icon: Contact2 },
-  { path: "/queries", label: "Queries", icon: TextSearch, bottom: true },
+      { path: "/queries", label: "Queries", icon: TextSearch, bottom: true },
     ],
   },
- 
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -111,12 +127,44 @@ export default function Sidebar({ isOpen, onClose }) {
   const accountMenuRef = useRef(null);
 
   const navigate = useNavigate();
-  let currentUser = null;
-  try {
-    currentUser = JSON.parse(localStorage.getItem("authUser") || "null");
-  } catch {
-    currentUser = null;
-  }
+  const dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.auth.user);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return undefined;
+
+    const controller = new AbortController();
+    const loadCurrentProfile = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/auth/profile`, {
+          headers: { Authorization: `******"token") || ""}` },
+          signal: controller.signal,
+        });
+        const profile = response.data?.data;
+        if (!profile?.id) {
+          throw new Error("The current profile response is incomplete.");
+        }
+
+        const storedUser = JSON.parse(
+          localStorage.getItem("authUser") || "null",
+        );
+        const updatedUser = { ...storedUser, ...profile };
+        localStorage.setItem("authUser", JSON.stringify(updatedUser));
+        dispatch(setCurrentUser(profile));
+      } catch (error) {
+        if (error.code !== "ERR_CANCELED") {
+          console.error(
+            "Failed to load account profile for the sidebar:",
+            error,
+          );
+        }
+      }
+    };
+
+    loadCurrentProfile();
+    return () => controller.abort();
+  }, [dispatch]);
 
   const closeSidebar = () => onClose();
   const closeAccountMenu = () => setAccountMenuOpen(false);
@@ -158,7 +206,7 @@ export default function Sidebar({ isOpen, onClose }) {
           "fixed inset-y-0 left-0 z-40 w-72 bg-gradient-to-b from-gray-950 to-gray-900 text-gray-100",
           "transform transition-transform duration-300 ease-in-out",
           "lg:translate-x-0 lg:relative lg:block",
-          isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+          isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
         )}
       >
         <div className="flex flex-col h-full">
@@ -192,99 +240,101 @@ export default function Sidebar({ isOpen, onClose }) {
           <nav className="flex-1 px-3 py-5 overflow-y-auto custom-scrollbar">
             <div className="space-y-1.5 pr-2">
               {navItems
-                .filter((item) => !item.adminOnly || currentUser?.role === "admin")
+                .filter(
+                  (item) => !item.adminOnly || currentUser?.role === "admin",
+                )
                 .map((item, index) => {
-                if (item.children) {
-                  const isTech = item.label === "Technology";
-                  const isOpenState = isTech ? techOpen : newsOpen;
-                  const toggle = isTech
-                    ? () => setTechOpen((p) => !p)
-                    : () => setNewsOpen((p) => !p);
+                  if (item.children) {
+                    const isTech = item.label === "Technology";
+                    const isOpenState = isTech ? techOpen : newsOpen;
+                    const toggle = isTech
+                      ? () => setTechOpen((p) => !p)
+                      : () => setNewsOpen((p) => !p);
+
+                    return (
+                      <div key={index}>
+                        <button
+                          type="button"
+                          onClick={toggle}
+                          className={clsx(
+                            "group flex w-full items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                            "text-gray-300 hover:bg-gray-800/60 hover:text-gray-100",
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <item.icon
+                              size={20}
+                              strokeWidth={2.1}
+                              className="shrink-0"
+                            />
+                            <span>{item.label}</span>
+                          </div>
+                          {isOpenState ? (
+                            <ChevronDown
+                              size={18}
+                              className="transition-transform duration-200"
+                            />
+                          ) : (
+                            <ChevronRight
+                              size={18}
+                              className="transition-transform duration-200"
+                            />
+                          )}
+                        </button>
+
+                        {isOpenState && (
+                          <div className="ml-6 mt-1 space-y-1 border-l border-gray-800/50 pl-3">
+                            {item.children.map((child) => (
+                              <NavLink
+                                key={child.path}
+                                to={child.path}
+                                onClick={closeSidebar}
+                                className={({ isActive }) =>
+                                  clsx(
+                                    "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
+                                    isActive
+                                      ? "bg-gray-800/80 text-white"
+                                      : "text-gray-400 hover:bg-gray-800/50 hover:text-gray-200",
+                                  )
+                                }
+                              >
+                                <child.icon
+                                  size={18}
+                                  strokeWidth={2}
+                                  className="shrink-0"
+                                />
+                                <span>{child.label}</span>
+                              </NavLink>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
 
                   return (
-                    <div key={index}>
-                      <button
-                        type="button"
-                        onClick={toggle}
-                        className={clsx(
-                          "group flex w-full items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                          "text-gray-300 hover:bg-gray-800/60 hover:text-gray-100"
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <item.icon
-                            size={20}
-                            strokeWidth={2.1}
-                            className="shrink-0"
-                          />
-                          <span>{item.label}</span>
-                        </div>
-                        {isOpenState ? (
-                          <ChevronDown
-                            size={18}
-                            className="transition-transform duration-200"
-                          />
-                        ) : (
-                          <ChevronRight
-                            size={18}
-                            className="transition-transform duration-200"
-                          />
-                        )}
-                      </button>
-
-                      {isOpenState && (
-                        <div className="ml-6 mt-1 space-y-1 border-l border-gray-800/50 pl-3">
-                          {item.children.map((child) => (
-                            <NavLink
-                              key={child.path}
-                              to={child.path}
-                              onClick={closeSidebar}
-                              className={({ isActive }) =>
-                                clsx(
-                                  "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
-                                  isActive
-                                    ? "bg-gray-800/80 text-white"
-                                    : "text-gray-400 hover:bg-gray-800/50 hover:text-gray-200"
-                                )
-                              }
-                            >
-                              <child.icon
-                                size={18}
-                                strokeWidth={2}
-                                className="shrink-0"
-                              />
-                              <span>{child.label}</span>
-                            </NavLink>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      onClick={closeSidebar}
+                      className={({ isActive }) =>
+                        clsx(
+                          "group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                          isActive
+                            ? "bg-gray-800/80 text-white shadow-sm"
+                            : "text-gray-400 hover:bg-gray-800/60 hover:text-gray-100",
+                          item.bottom ? "mt-6" : "",
+                        )
+                      }
+                    >
+                      <item.icon
+                        size={20}
+                        strokeWidth={2.1}
+                        className="shrink-0"
+                      />
+                      <span>{item.label}</span>
+                    </NavLink>
                   );
-                }
-
-                return (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    onClick={closeSidebar}
-                    className={({ isActive }) =>
-                      clsx(
-                        "group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                        isActive
-                          ? "bg-gray-800/80 text-white shadow-sm"
-                          : "text-gray-400 hover:bg-gray-800/60 hover:text-gray-100",
-                        item.bottom ? "mt-6" : ""
-                      )
-                    }
-                  >
-                    <item.icon
-                      size={20}
-                      strokeWidth={2.1}
-                      className="shrink-0"
-                    />
-                    <span>{item.label}</span>
-                  </NavLink>
-                );
                 })}
             </div>
           </nav>
@@ -352,11 +402,21 @@ export default function Sidebar({ isOpen, onClose }) {
                   : "text-gray-300 hover:bg-gray-800/60 hover:text-white",
               )}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-indigo-200 ring-1 ring-indigo-400/20">
-                <UserRound size={18} strokeWidth={2} />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-500/15 text-indigo-200 ring-1 ring-indigo-400/20">
+                {currentUser?.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={`${currentUser.username || "Account"} profile`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <UserRound size={18} strokeWidth={2} />
+                )}
               </span>
               <span className="min-w-0 flex-1 text-left">
-                <span className="block">Account</span>
+                <span className="block truncate">
+                  {currentUser?.username || "Account"}
+                </span>
                 <span className="mt-0.5 block text-xs font-normal text-gray-500">
                   Profile & security
                 </span>

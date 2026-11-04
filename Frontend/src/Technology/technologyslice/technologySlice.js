@@ -594,7 +594,7 @@ export const fetchCategories = createAsyncThunk(
   "technology/fetchCategories",
   async (_, { rejectWithValue }) => {
     try {
-      const apiUrl = `${import.meta.env.VITE_API_URL || "https://api.aiknotsit.com"}/api/technology/category`;
+      const apiUrl = `${import.meta.env.VITE_API_URL || window.location.origin}/api/technology/category`;
       const res = await fetch(apiUrl);
       if (!res.ok) throw new Error("Failed to fetch categories");
       const data = await res.json();
@@ -610,8 +610,7 @@ export const fetchProducts = createAsyncThunk(
   "technology/fetchProducts",
   async (categoryId, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       let url = `${baseUrl}/api/technology/product`;
       if (categoryId) url += `?category=${categoryId}`;
 
@@ -660,8 +659,7 @@ export const fetchSinglePost = createAsyncThunk(
   "technology/fetchSinglePost",
   async (slug, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(
         `${baseUrl}/api/technology/product/technology/${slug}`,
       );
@@ -704,8 +702,7 @@ export const incrementPostView = createAsyncThunk(
   "technology/incrementView",
   async (slug, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(
         `${baseUrl}/api/technology/product/technology/${slug}/view`,
         { method: "PUT" },
@@ -723,8 +720,7 @@ export const togglePostLike = createAsyncThunk(
   "technology/toggleLike",
   async ({ slug, email }, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(
         `${baseUrl}/api/technology/product/technology/${slug}/like`,
         {
@@ -746,8 +742,7 @@ export const sendCommentOtp = createAsyncThunk(
   "technology/sendCommentOtp",
   async ({ slug, name, email, phone }, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(
         `${baseUrl}/api/technology/product/technology/${slug}/send-otp`,
         {
@@ -769,8 +764,7 @@ export const verifyCommentOtp = createAsyncThunk(
   "technology/verifyCommentOtp",
   async ({ slug, email, otp }, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(
         `${baseUrl}/api/technology/product/technology/${slug}/verify-otp`,
         {
@@ -793,8 +787,7 @@ export const postComment = createAsyncThunk(
   "technology/postComment",
   async ({ slug, email, comment }, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(
         `${baseUrl}/api/technology/product/technology/${slug}/add-comment`,
         {

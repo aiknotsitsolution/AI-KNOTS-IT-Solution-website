@@ -30,6 +30,7 @@ const Gallery = () => {
   ];
 
   const displayImages = images.length > 0 ? images : fallbackImages;
+  const apiBaseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
   // ====================== THEME CLASSES ======================
   if (loading) {
@@ -203,7 +204,7 @@ const Gallery = () => {
                       setSelectedImage(
                         src.startsWith("http")
                           ? `${src}?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=100`
-                          : `https://api.aiknotsit.com${src}`,
+                          : `${apiBaseUrl}${src}`,
                       )
                     }
                   >
@@ -211,7 +212,7 @@ const Gallery = () => {
                       src={
                         src.startsWith("http")
                           ? `${src}?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80`
-                          : `https://api.aiknotsit.com${src}?auto=format&fit=crop&w=800&q=80`
+                          : `${apiBaseUrl}${src}?auto=format&fit=crop&w=800&q=80`
                       }
                       alt={`Gallery image ${index + 1}`}
                       className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-110 cursor-zoom-in"

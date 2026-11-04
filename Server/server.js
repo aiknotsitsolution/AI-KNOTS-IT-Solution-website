@@ -53,6 +53,17 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 
+app.use((req, res, next) => {
+  res.setHeader(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains",
+  );
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  next();
+});
+
 app.use(
   cors({
     origin: true,
@@ -74,6 +85,47 @@ app.use("/tech", techRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/query", queryRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+
+app.post("/api/chat", async (req, res, next) => {
+  const { input_value: inputValue, session_id: sessionId } = req.body;
+  const langflowUrl = process.env.LANGFLOW_API_URL;
+  const langflowApiKey = process.env.LANGFLOW_API_KEY;
+
+  if (!langflowUrl || !langflowApiKey) {
+    return res.status(503).json({
+      success: false,
+      message: "Chat service is not configured",
+    });
+  }
+
+  if (typeof inputValue !== "string" || !inputValue.trim()) {
+    return res.status(400).json({
+      success: false,
+      message: "A chat message is required",
+    });
+  }
+
+  try {
+    const response = await fetch(langflowUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": langflowApiKey,
+      },
+      body: JSON.stringify({
+        output_type: "chat",
+        input_type: "chat",
+        input_value: inputValue.trim(),
+        session_id: sessionId,
+      }),
+    });
+
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (error) {
+    return next(error);
+  }
+});
 
 app.use("/portfolio", portfolioRoutes);
 app.use("/category/portfolio", portfoliocategoryRoutes);

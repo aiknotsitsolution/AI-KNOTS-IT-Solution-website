@@ -101,7 +101,7 @@ export default function Navbar()
           <NavLink to="/" onClick={closeAll} className="flex-shrink-0">
             <img
               src={isDark ? ATLAknots : ATLAknots2}
-              alt="ATLAKnots Logo"
+              alt="AI Knots IT Solution logo"
               className="h-10 md:h-14 lg:h-18 w-auto object-contain"
             />
           </NavLink>

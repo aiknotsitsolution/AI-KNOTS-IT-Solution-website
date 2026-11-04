@@ -120,7 +120,7 @@ const Footer = () => {
             <div className="lg:col-span-1">
               <img
                 src={isDark ? ATLAknotsDark : ATLAknotsLight}
-                alt="ATLA Knots Logo"
+                alt="AI Knots IT Solution logo"
                 className="h-12 w-[200px] md:h-16 md:w-[260px] lg:h-20 lg:w-[320px] mt-2 object-contain"
                 onError={(e) => (e.target.style.display = "none")}
               />

@@ -261,8 +261,7 @@ export const fetchCategories = createAsyncThunk(
   "blog/fetchCategories",
   async (_, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(`${baseUrl}/api/blogcategory`);
       if (!res.ok) throw new Error("Failed to fetch categories");
       const data = await res.json();
@@ -282,8 +281,7 @@ export const fetchBlogPosts = createAsyncThunk(
     { rejectWithValue },
   ) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const params = new URLSearchParams({ page, limit });
       if (category !== "All") params.set("category", category);
 
@@ -317,8 +315,7 @@ export const fetchBlogPostById = createAsyncThunk(
     try {
       if (!identifier) throw new Error("Slug/ID is required");
 
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(`${baseUrl}/api/product/${identifier}`);
       if (!res.ok) throw new Error("Post not found");
 
@@ -338,8 +335,7 @@ export const incrementPostView = createAsyncThunk(
   "blog/incrementView",
   async (postId, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(`${baseUrl}/api/product/${postId}/view`, {
         method: "PUT",
       });
@@ -359,8 +355,7 @@ export const togglePostLike = createAsyncThunk(
       const { postId, email } =
         typeof payload === "string" ? { postId: payload } : payload;
 
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(`${baseUrl}/api/product/${postId}/like`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -380,8 +375,7 @@ export const sendCommentOtp = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const { postId, name, email, phone } = payload;
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(`${baseUrl}/api/product/${postId}/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -400,8 +394,7 @@ export const verifyCommentOtp = createAsyncThunk(
   "blog/verifyCommentOtp",
   async ({ postId, email, otp }, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(`${baseUrl}/api/product/${postId}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -421,8 +414,7 @@ export const postComment = createAsyncThunk(
   "blog/postComment",
   async ({ postId, email, comment }, { rejectWithValue }) => {
     try {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+      const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
       const res = await fetch(`${baseUrl}/api/product/${postId}/comment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

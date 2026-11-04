@@ -208,7 +208,7 @@ const Home = () => {
       desc: "Our product assistance services offer expert guidance...",
       category: "operations",
       icon: HelpTicketSystem,
-      link: "/productforsells",
+      link: "/contact",
     },
     {
       title: "Search Engine Optimization (SEO)",
@@ -514,7 +514,12 @@ const Home = () => {
             <img
               src={dashboard}
               alt="AI KNOTS Dashboard"
-              className="rounded-2xl w-full max-w-[600px]"
+              width="2712"
+              height="3086"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              className="rounded-2xl w-full max-w-[600px] aspect-[2712/3086] object-contain"
             />
           </motion.div>
         </div>
@@ -739,14 +744,18 @@ const Home = () => {
               <motion.div
                 key={index}
                 whileHover={{ y: -5 }}
-                onClick={() => feature.link && navigate(feature.link)}
                 className={`rounded-3xl p-4 group cursor-pointer h-full transition-all duration-300 ${
                   isDark
                     ? "bg-gray-900 hover:bg-gray-800"
                     : "bg-[#f4ecec] hover:bg-[#FFF6EF]"
                 }`}
               >
-                <div className="flex items-center gap-4 mb-4">
+                <Link
+                  to={feature.link}
+                  aria-label={`Learn more about ${feature.title}`}
+                  className="block h-full"
+                >
+                  <div className="flex items-center gap-4 mb-4">
                   <div className="flex-none h-24 w-24 flex items-center justify-center text-5xl overflow-hidden">
                     {typeof feature.icon === "string" &&
                     /\.(png|jpe?g|gif|svg|webp)$/i.test(feature.icon) ? (
@@ -771,7 +780,8 @@ const Home = () => {
                       {feature.desc}
                     </p>
                   </div>
-                </div>
+                  </div>
+                </Link>
               </motion.div>
             ))}
           </motion.div>

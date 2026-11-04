@@ -2,8 +2,7 @@
 import axios from "axios";
 
 // Base URL from environment variables
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+const API_BASE_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
 // Optional: Create an axios instance with baseURL (recommended)
 const api = axios.create({

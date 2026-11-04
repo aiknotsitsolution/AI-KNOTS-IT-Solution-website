@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
 import axios from "axios";
 import {
   ArrowLeft,
@@ -14,6 +15,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { setCurrentUser } from "../auth/authSlice";
 
 const API_URL = import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
 const OTP_LIFETIME_SECONDS = 60;
@@ -38,6 +40,7 @@ const formatDate = (value) => {
 
 const Profile = () => {
   const location = useLocation();
+  const dispatch = useDispatch();
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState("");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -70,6 +73,23 @@ const Profile = () => {
   const [passwordError, setPasswordError] = useState("");
   const [expiresAt, setExpiresAt] = useState(0);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
+
+  const syncProfile = useCallback(
+    (updatedProfile) => {
+      setProfile((current) => ({ ...current, ...updatedProfile }));
+      let storedUser = {};
+      try {
+        storedUser =
+          JSON.parse(localStorage.getItem("authUser") || "null") || {};
+      } catch {
+        storedUser = {};
+      }
+      const updatedUser = { ...storedUser, ...updatedProfile };
+      localStorage.setItem("authUser", JSON.stringify(updatedUser));
+      dispatch(setCurrentUser(updatedProfile));
+    },
+    [dispatch],
+  );
 
   useEffect(() => {
     if (avatarPreview) return () => URL.revokeObjectURL(avatarPreview);
@@ -125,7 +145,7 @@ const Profile = () => {
         if (!user?.id || !user?.username || !user?.email) {
           throw new Error("The profile response is incomplete.");
         }
-        setProfile(user);
+        syncProfile(user);
         setUsername(user.username);
       } catch (requestError) {
         if (requestError.code === "ERR_CANCELED") return;
@@ -142,7 +162,7 @@ const Profile = () => {
 
     loadProfile();
     return () => controller.abort();
-  }, []);
+  }, [syncProfile]);
 
   useEffect(() => {
     if (!expiresAt) return undefined;
@@ -185,7 +205,7 @@ const Profile = () => {
         { username },
         requestConfig(),
       );
-      setProfile((current) => ({ ...current, ...response.data.data }));
+      syncProfile(response.data.data);
       setUsername(response.data.data.username);
       setProfileMessage(response.data.message);
     } catch (requestError) {
@@ -215,7 +235,7 @@ const Profile = () => {
         formData,
         requestConfig(),
       );
-      setProfile((current) => ({ ...current, ...response.data.data }));
+      syncProfile(response.data.data);
       clearAvatarSelection();
       setProfileMessage(response.data.message);
     } catch (requestError) {
@@ -328,7 +348,7 @@ const Profile = () => {
         { otp: newEmailOtp },
         requestConfig(),
       );
-      setProfile((current) => ({ ...current, ...response.data.data }));
+      syncProfile(response.data.data);
       setEmailMessage(response.data.message);
       setEmailExpiresAt(0);
       setEmailStep(4);

@@ -27,8 +27,6 @@ const Chatbot = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const chatRef = useRef(null);
-  const apiKey = "sk-Q9HtqsO3xcbEHyugHdRJw3jkBcQhvTpZ6WIS8XnbBnE"; // ← Update this
-
   const quickReplies = [
     "Tell me about your services",
     "How can you help my business?",
@@ -95,13 +93,13 @@ const Chatbot = () => {
     try {
       const sessionId = crypto.randomUUID?.() || `session-${Date.now()}`;
 
+      const apiBaseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
       const response = await fetch(
-        "http://localhost:7860/api/v1/run/2a77917b-8dac-4b57-bb0e-d3bf941e0884",
+        `${apiBaseUrl}/api/chat`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": apiKey,
           },
           body: JSON.stringify({
             output_type: "chat",
