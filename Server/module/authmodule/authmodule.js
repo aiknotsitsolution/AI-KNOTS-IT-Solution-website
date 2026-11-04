@@ -9,7 +9,43 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  emailVerified: {
+    type: Boolean,
+    default: true
+  },
+  emailVerificationOtpHash: {
+    type: String,
+    default: null
+  },
+  emailVerificationOtpExpires: {
+    type: Date,
+    default: null
+  },
+  emailVerificationOtpAttempts: {
+    type: Number,
+    default: 0
+  },
+  emailVerificationRequestedAt: {
+    type: Date,
+    default: null
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'testing'],
+    trim: true,
+    default: 'admin'
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  avatarUrl: {
+    type: String,
+    default: null
   },
   password: {
     type: String,
@@ -36,6 +72,62 @@ const userSchema = new mongoose.Schema({
     default: null
   },
   passwordResetVerifiedExpires: {
+    type: Date,
+    default: null
+  },
+  profilePasswordOtpHash: {
+    type: String,
+    default: null
+  },
+  profilePasswordOtpExpires: {
+    type: Date,
+    default: null
+  },
+  profilePasswordOtpAttempts: {
+    type: Number,
+    default: 0
+  },
+  profilePasswordOtpRequestedAt: {
+    type: Date,
+    default: null
+  },
+  profilePasswordVerifiedTokenHash: {
+    type: String,
+    default: null
+  },
+  profilePasswordVerifiedExpires: {
+    type: Date,
+    default: null
+  },
+  emailChangeOtpHash: {
+    type: String,
+    default: null
+  },
+  emailChangeOtpExpires: {
+    type: Date,
+    default: null
+  },
+  emailChangeOtpAttempts: {
+    type: Number,
+    default: 0
+  },
+  emailChangeOtpRequestedAt: {
+    type: Date,
+    default: null
+  },
+  emailChangeOtpStage: {
+    type: String,
+    default: null
+  },
+  emailChangePendingEmail: {
+    type: String,
+    default: null
+  },
+  emailChangeCurrentVerifiedTokenHash: {
+    type: String,
+    default: null
+  },
+  emailChangeCurrentVerifiedExpires: {
     type: Date,
     default: null
   },

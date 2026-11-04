@@ -16,17 +16,27 @@
 
 // export default Layout;
 
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
+import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 
 const Layout = () => {
-  return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">   {/* ← Important: h-screen + overflow-hidden */}
-      <Sidebar />
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-      {/* Main Content - Separate Scrollbar */}
-      <main className="flex-1 overflow-y-auto custom-scrollbar bg-gray-100">
-        <div className="p-6 lg:p-8 min-h-full">
+  return (
+    <div className="flex h-screen overflow-hidden bg-slate-100">
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
+
+      <main className="min-w-0 flex-1 overflow-y-auto bg-slate-100 custom-scrollbar">
+        <Navbar
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((open) => !open)}
+        />
+        <div className="min-h-full p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </main>

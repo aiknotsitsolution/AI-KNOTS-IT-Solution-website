@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BarChart3,
@@ -7,16 +7,21 @@ import {
   Contact2,
   TextSearch,
   LogOut,
-  Menu,
-  X,
+  KeyRound,
   GalleryHorizontal,
+  UserRound,
+  UsersRound,
+  UserPlus,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
+import brandMark from "../assets/brand-mark.webp";
 
 // ────────────────────────────────────────────────
 const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/users", label: "Users & access", icon: UsersRound, adminOnly: true },
+  { path: "/register", label: "Register user", icon: UserPlus, adminOnly: true },
 
   {
     label: "Blogview",
@@ -99,36 +104,46 @@ const navItems = [
  
 ];
 
-export default function Sidebar() {
-  const [isOpen, setIsOpen] = useState(false);
+export default function Sidebar({ isOpen, onClose }) {
   const [techOpen, setTechOpen] = useState(true);
   const [newsOpen, setNewsOpen] = useState(true);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef(null);
 
   const navigate = useNavigate();
+  let currentUser = null;
+  try {
+    currentUser = JSON.parse(localStorage.getItem("authUser") || "null");
+  } catch {
+    currentUser = null;
+  }
 
-  const toggleSidebar = () => setIsOpen((p) => !p);
-  const closeSidebar = () => setIsOpen(false);
+  const closeSidebar = () => onClose();
+  const closeAccountMenu = () => setAccountMenuOpen(false);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return undefined;
+
+    const closeOnOutsideClick = (event) => {
+      if (!accountMenuRef.current?.contains(event.target)) {
+        closeAccountMenu();
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [accountMenuOpen]);
 
   const handleLogout = () => {
     console.log("User logged out");
     localStorage.removeItem("token");
-    localStorage.clear();
-    navigate("/", { replace: true });
+    localStorage.removeItem("authUser");
+    navigate("/login", { replace: true });
     closeSidebar();
   };
 
   return (
     <>
-      {/* Mobile toggle button */}
-      <button
-        type="button"
-        aria-label="Toggle sidebar"
-        className="fixed top-4 left-4 z-50 lg:hidden p-2.5 rounded-lg bg-gray-800/90 backdrop-blur-sm text-white shadow-md hover:bg-gray-700 transition-colors"
-        onClick={toggleSidebar}
-      >
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
-
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"
@@ -148,17 +163,37 @@ export default function Sidebar() {
       >
         <div className="flex flex-col h-full">
           {/* Logo / Header */}
-          <div className="p-6 border-b border-gray-800/60">
-            <h1 className="text-2xl font-bold tracking-tight">
-              AI Knots<span className="text-blue-500 ml-1.5">Admin</span>
-            </h1>
-            <p className="text-xs text-gray-500 mt-1">Management Panel</p>
+          <div className="border-b border-white/10 px-5 py-5">
+            <Link
+              to="/dashboard"
+              onClick={closeSidebar}
+              className="flex items-center gap-3 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            >
+              <span className="flex h-[4.25rem] w-[4.25rem] shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-amber-100/15 bg-black shadow-lg shadow-black/20">
+                <img
+                  src={brandMark}
+                  alt="AI Knots logo"
+                  className="h-full w-full object-contain"
+                />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-lg font-bold tracking-tight text-white">
+                  AI Knots
+                </span>
+                <span className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-200/80">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                  Admin panel
+                </span>
+              </span>
+            </Link>
           </div>
 
           {/* Navigation with Beautiful Scrollbar */}
           <nav className="flex-1 px-3 py-5 overflow-y-auto custom-scrollbar">
             <div className="space-y-1.5 pr-2">
-              {navItems.map((item, index) => {
+              {navItems
+                .filter((item) => !item.adminOnly || currentUser?.role === "admin")
+                .map((item, index) => {
                 if (item.children) {
                   const isTech = item.label === "Technology";
                   const isOpenState = isTech ? techOpen : newsOpen;
@@ -250,19 +285,89 @@ export default function Sidebar() {
                     <span>{item.label}</span>
                   </NavLink>
                 );
-              })}
+                })}
             </div>
           </nav>
 
-          {/* Logout Section */}
-          <div className="mt-auto border-t border-gray-800/60 p-4">
+          {/* Account menu */}
+          <div
+            ref={accountMenuRef}
+            className="relative mt-auto border-t border-gray-800/60 p-4"
+          >
+            {accountMenuOpen && (
+              <div
+                id="sidebar-account-menu"
+                className="absolute inset-x-4 bottom-full mb-3 overflow-hidden rounded-2xl border border-gray-700 bg-gray-900 p-2 shadow-2xl shadow-black/30"
+              >
+                <NavLink
+                  to="/profile"
+                  onClick={() => {
+                    closeAccountMenu();
+                    closeSidebar();
+                  }}
+                  className={({ isActive }) =>
+                    clsx(
+                      "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition",
+                      isActive
+                        ? "bg-indigo-500/15 text-indigo-200"
+                        : "text-gray-300 hover:bg-gray-800 hover:text-white",
+                    )
+                  }
+                >
+                  <UserRound size={18} />
+                  <span>My profile</span>
+                </NavLink>
+                <Link
+                  to="/profile#security"
+                  onClick={() => {
+                    closeAccountMenu();
+                    closeSidebar();
+                  }}
+                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-gray-300 transition hover:bg-gray-800 hover:text-white"
+                >
+                  <KeyRound size={18} />
+                  <span>Password update</span>
+                </Link>
+                <div className="my-1 border-t border-gray-800" />
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-red-300 transition hover:bg-red-950/40 hover:text-red-200"
+                >
+                  <LogOut size={18} />
+                  <span>Logout</span>
+                </button>
+              </div>
+            )}
             <button
               type="button"
-              onClick={handleLogout}
-              className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-950/30 hover:text-red-300 transition-all"
+              aria-expanded={accountMenuOpen}
+              aria-controls="sidebar-account-menu"
+              aria-label="Open profile, password and logout menu"
+              onClick={() => setAccountMenuOpen((isOpen) => !isOpen)}
+              className={clsx(
+                "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all",
+                accountMenuOpen
+                  ? "bg-gray-800/80 text-white"
+                  : "text-gray-300 hover:bg-gray-800/60 hover:text-white",
+              )}
             >
-              <LogOut size={20} strokeWidth={2.1} className="shrink-0" />
-              <span>Logout</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-500/15 text-indigo-200 ring-1 ring-indigo-400/20">
+                <UserRound size={18} strokeWidth={2} />
+              </span>
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block">Account</span>
+                <span className="mt-0.5 block text-xs font-normal text-gray-500">
+                  Profile & security
+                </span>
+              </span>
+              <ChevronDown
+                size={17}
+                className={clsx(
+                  "transition-transform",
+                  accountMenuOpen && "rotate-180",
+                )}
+              />
             </button>
           </div>
         </div>

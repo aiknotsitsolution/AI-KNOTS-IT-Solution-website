@@ -3,8 +3,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./Pages/authLogin/Login";
 import ForgotPassword from "./Pages/authLogin/ForgotPassword";
 import Dashboard from "./Pages/authLogin/Dashboard";
+import Profile from "./Pages/authLogin/Profile";
+import Register from "./Pages/authLogin/Register";
+import VerifyEmail from "./Pages/authLogin/VerifyEmail";
+import Users from "./Pages/authLogin/Users";
 import Layout from "./Component/Layout";
 import ProtectedRoute from "./Component/ProtectedRoute";
+import AdminRoute from "./Component/AdminRoute";
 import Createpost from "./Pages/Home/Createpost";
 import ProductList from "./Pages/product/ProductList";
 import ContactList from "./Pages/contact/Contact";
@@ -32,6 +37,7 @@ function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ForgotPassword />} />
 
@@ -40,6 +46,11 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/users" element={<Users />} />
+              <Route path="/register" element={<Register />} />
+            </Route>
             <Route path="/homepage" element={<Createpost />} />
             <Route path="/getpost" element={<ProductList />} />
             <Route path="/contact" element={<ContactList />} />

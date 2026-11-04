@@ -1,77 +1,148 @@
-
-
-// src/components/Gallery.jsx
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertCircle,
+  Check,
+  ImagePlus,
+  Images,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
+import { toast } from "react-toastify";
 import {
   createGalleryItem,
   getAllGalleryItems,
   updateGalleryItem,
   deleteGalleryItem,
-} from "./Gallery.api"; // adjust path
+} from "./Gallery.api";
+
+const MAX_IMAGES = 10;
 
 const Gallery = () => {
-  // ── Create form states ────────────────────────────────────────
   const [name, setName] = useState("");
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [createLoading, setCreateLoading] = useState(false);
-  const [createMessage, setCreateMessage] = useState({ type: "", text: "" });
-
-  // ── List / data states ────────────────────────────────────────
   const [galleryItems, setGalleryItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
-  const [error, setError] = useState(null);
-
-  // ── Edit modal states ─────────────────────────────────────────
+  const [error, setError] = useState("");
+  const [searchText, setSearchText] = useState("");
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [editName, setEditName] = useState("");
-  const [editFiles, setEditFiles] = useState([]); // new files only
-  const [editPreviews, setEditPreviews] = useState([]); // new previews
+  const [editFiles, setEditFiles] = useState([]);
+  const [editPreviews, setEditPreviews] = useState([]);
   const [editLoading, setEditLoading] = useState(false);
-  const [editMessage, setEditMessage] = useState({ type: "", text: "" });
+  const previewUrls = useRef(new Set());
 
-  // Load all gallery items on mount
-  useEffect(() => {
-    fetchGalleryItems();
-  }, []);
+  const createFileInput = useRef(null);
+  const editFileInput = useRef(null);
 
-  const fetchGalleryItems = async () => {
+  const createPreview = (file) => {
+    const url = URL.createObjectURL(file);
+    previewUrls.current.add(url);
+    return url;
+  };
+
+  const releasePreview = (url) => {
+    if (previewUrls.current.delete(url)) URL.revokeObjectURL(url);
+  };
+
+  useEffect(
+    () => () => {
+      previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrls.current.clear();
+    },
+    [],
+  );
+
+  const fetchGalleryItems = useCallback(async () => {
+    setLoadingItems(true);
+    setError("");
     try {
-      setLoadingItems(true);
-      setError(null);
-      const res = await getAllGalleryItems();
-      setGalleryItems(res.data?.data || res.data || []); // adjust depending on your response shape
-    } catch (err) {
-      console.error("Failed to load gallery:", err);
-      setError("Could not load gallery items");
+      const response = await getAllGalleryItems();
+      const result = response.data?.data ?? response.data;
+      if (!Array.isArray(result)) {
+        throw new Error("The gallery response was not in the expected format.");
+      }
+      setGalleryItems(result);
+    } catch (requestError) {
+      const message =
+        requestError.response?.data?.message ||
+        requestError.message ||
+        "Could not load gallery items.";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoadingItems(false);
     }
-  };
+  }, []);
 
-  // ── CREATE helpers ────────────────────────────────────────────
-  const handleCreateFiles = (e) => {
-    const selected = Array.from(e.target.files);
-    if (files.length + selected.length > 10) {
-      setCreateMessage({ type: "error", text: "Max 10 images allowed" });
-      return;
+  useEffect(() => {
+    fetchGalleryItems();
+  }, [fetchGalleryItems]);
+
+  const filteredItems = useMemo(() => {
+    const search = searchText.trim().toLowerCase();
+    if (!search) return galleryItems;
+    return galleryItems.filter((item) =>
+      (item.name || "").toLowerCase().includes(search),
+    );
+  }, [galleryItems, searchText]);
+
+  const imageCount = galleryItems.reduce(
+    (total, item) => total + (Array.isArray(item.images) ? item.images.length : 0),
+    0,
+  );
+
+  const handleCreateFiles = (event) => {
+    const selected = Array.from(event.target.files || []);
+    const availableSlots = MAX_IMAGES - files.length;
+    if (selected.length > availableSlots) {
+      toast.warning(`You can add up to ${MAX_IMAGES} images per gallery item.`);
     }
-    const newPreviews = selected.map((f) => URL.createObjectURL(f));
-    setFiles((prev) => [...prev, ...selected]);
-    setPreviews((prev) => [...prev, ...newPreviews]);
+    const accepted = selected.slice(0, availableSlots);
+    if (accepted.length) {
+      setFiles((current) => [...current, ...accepted]);
+      setPreviews((current) => [
+        ...current,
+        ...accepted.map(createPreview),
+      ]);
+    }
+    event.target.value = "";
   };
 
   const removeCreatePreview = (index) => {
-    URL.revokeObjectURL(previews[index]);
-    setFiles((p) => p.filter((_, i) => i !== index));
-    setPreviews((p) => p.filter((_, i) => i !== index));
+    releasePreview(previews[index]);
+    setFiles((current) => current.filter((_, fileIndex) => fileIndex !== index));
+    setPreviews((current) =>
+      current.filter((_, previewIndex) => previewIndex !== index),
+    );
   };
 
-  const handleCreateSubmit = async (e) => {
-    e.preventDefault();
-    if (!name.trim()) return setCreateMessage({ type: "error", text: "Name is required" });
-    if (files.length === 0) return setCreateMessage({ type: "error", text: "Select at least 1 image" });
+  const resetCreateForm = () => {
+    previews.forEach(releasePreview);
+    setName("");
+    setFiles([]);
+    setPreviews([]);
+    if (createFileInput.current) createFileInput.current.value = "";
+  };
+
+  const handleCreateSubmit = async (event) => {
+    event.preventDefault();
+    if (!name.trim()) {
+      toast.error("Enter a name for this gallery item.");
+      return;
+    }
+    if (!files.length) {
+      toast.error("Select at least one image.");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("name", name.trim());
@@ -80,53 +151,78 @@ const Gallery = () => {
     setCreateLoading(true);
     try {
       await createGalleryItem(formData);
-      setCreateMessage({ type: "success", text: "Item created!" });
+      toast.success("Gallery item created successfully.");
       resetCreateForm();
-      fetchGalleryItems(); // refresh list
-    } catch (err) {
-      setCreateMessage({
-        type: "error",
-        text: err.response?.data?.message || "Failed to create item",
-      });
+      await fetchGalleryItems();
+    } catch (requestError) {
+      toast.error(
+        requestError.response?.data?.message ||
+          requestError.message ||
+          "Failed to create gallery item.",
+      );
     } finally {
       setCreateLoading(false);
     }
   };
 
-  const resetCreateForm = () => {
-    setName("");
-    setFiles([]);
-    previews.forEach(URL.revokeObjectURL);
-    setPreviews([]);
-    setCreateMessage({ type: "", text: "" });
-  };
-
-  // ── EDIT helpers ──────────────────────────────────────────────
   const openEditModal = (item) => {
+    editPreviews.forEach(releasePreview);
     setEditingItem(item);
     setEditName(item.name || "");
     setEditFiles([]);
     setEditPreviews([]);
-    setEditMessage({ type: "", text: "" });
+    if (editFileInput.current) editFileInput.current.value = "";
     setEditModalOpen(true);
   };
 
-  const handleEditFiles = (e) => {
-    const selected = Array.from(e.target.files);
-    const newPreviews = selected.map((f) => URL.createObjectURL(f));
-    setEditFiles((prev) => [...prev, ...selected]);
-    setEditPreviews((prev) => [...prev, ...newPreviews]);
+  const closeEditModal = () => {
+    if (editLoading) return;
+    editPreviews.forEach(releasePreview);
+    setEditModalOpen(false);
+    setEditingItem(null);
+    setEditName("");
+    setEditFiles([]);
+    setEditPreviews([]);
+    if (editFileInput.current) editFileInput.current.value = "";
+  };
+
+  const handleEditFiles = (event) => {
+    const selected = Array.from(event.target.files || []);
+    const currentImageCount = editingItem?.images?.length || 0;
+    const availableSlots = Math.max(
+      0,
+      MAX_IMAGES - currentImageCount - editFiles.length,
+    );
+    if (selected.length > availableSlots) {
+      toast.warning(
+        `This item can contain up to ${MAX_IMAGES} images in total.`,
+      );
+    }
+    const accepted = selected.slice(0, availableSlots);
+    if (accepted.length) {
+      setEditFiles((current) => [...current, ...accepted]);
+      setEditPreviews((current) => [
+        ...current,
+        ...accepted.map(createPreview),
+      ]);
+    }
+    event.target.value = "";
   };
 
   const removeEditPreview = (index) => {
-    URL.revokeObjectURL(editPreviews[index]);
-    setEditFiles((p) => p.filter((_, i) => i !== index));
-    setEditPreviews((p) => p.filter((_, i) => i !== index));
+    releasePreview(editPreviews[index]);
+    setEditFiles((current) => current.filter((_, fileIndex) => fileIndex !== index));
+    setEditPreviews((current) =>
+      current.filter((_, previewIndex) => previewIndex !== index),
+    );
   };
 
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    if (!editName.trim()) return setEditMessage({ type: "error", text: "Name is required" });
+  const handleEditSubmit = async (event) => {
+    event.preventDefault();
+    if (!editName.trim()) {
+      toast.error("Enter a name for this gallery item.");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("name", editName.trim());
@@ -135,227 +231,484 @@ const Gallery = () => {
     setEditLoading(true);
     try {
       await updateGalleryItem(editingItem._id, formData);
-      setEditMessage({ type: "success", text: "Updated successfully" });
-      setTimeout(() => {
-        setEditModalOpen(false);
-        fetchGalleryItems();
-      }, 1200);
-    } catch (err) {
-      setEditMessage({
-        type: "error",
-        text: err.response?.data?.message || "Update failed",
-      });
+      toast.success("Gallery item updated successfully.");
+      editPreviews.forEach(releasePreview);
+      setEditModalOpen(false);
+      setEditingItem(null);
+      setEditFiles([]);
+      setEditPreviews([]);
+      await fetchGalleryItems();
+    } catch (requestError) {
+      toast.error(
+        requestError.response?.data?.message ||
+          requestError.message ||
+          "Failed to update gallery item.",
+      );
     } finally {
       setEditLoading(false);
     }
   };
 
-  // ── DELETE ────────────────────────────────────────────────────
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this gallery item?")) return;
+  const handleDelete = async (item) => {
+    if (!window.confirm(`Delete "${item.name || "this gallery item"}"?`)) return;
     try {
-      await deleteGalleryItem(id);
-      fetchGalleryItems();
-    } catch (err) {
-      alert("Delete failed: " + (err.response?.data?.message || "Unknown error"));
+      await deleteGalleryItem(item._id);
+      setGalleryItems((current) =>
+        current.filter((galleryItem) => galleryItem._id !== item._id),
+      );
+      toast.success("Gallery item deleted successfully.");
+    } catch (requestError) {
+      toast.error(
+        requestError.response?.data?.message ||
+          requestError.message ||
+          "Failed to delete gallery item.",
+      );
     }
   };
 
-  // ── CLEANUP previews on unmount ───────────────────────────────
-  useEffect(() => {
-    return () => {
-      previews.forEach(URL.revokeObjectURL);
-      editPreviews.forEach(URL.revokeObjectURL);
-    };
-  }, [previews, editPreviews]);
-
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-6 text-white shadow-xl shadow-slate-900/10 sm:p-8">
+        <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-indigo-100">
+              <Images size={14} />
+              Media library
+            </span>
+            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+              Gallery
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
+              Organize your photo collections and keep your website gallery up
+              to date.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={fetchGalleryItems}
+            disabled={loadingItems}
+            className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
+          >
+            <RefreshCw
+              size={16}
+              className={loadingItems ? "animate-spin" : ""}
+            />
+            Refresh
+          </button>
+        </div>
+      </section>
 
-        {/* CREATE FORM */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-12">
-          <h2 className="text-2xl font-bold mb-6 text-center">Add New Gallery Item</h2>
+      <section className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-500">
+              Collections
+            </span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <Images size={19} />
+            </span>
+          </div>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+            {loadingItems ? "—" : galleryItems.length}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-500">
+              Total images
+            </span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+              <ImagePlus size={19} />
+            </span>
+          </div>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+            {loadingItems ? "—" : imageCount}
+          </p>
+        </div>
+      </section>
 
-          <form onSubmit={handleCreateSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium mb-1">Title / Name</label>
+      <section className="grid items-start gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                <Plus size={19} />
+              </span>
+              <div>
+                <h2 className="font-semibold text-slate-900">
+                  Create collection
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Add a title and up to {MAX_IMAGES} images.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleCreateSubmit} className="space-y-5 p-5">
+            <label className="block text-sm font-semibold text-slate-700">
+              Collection name
               <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="e.g. Holi Celebration 2025"
+                onChange={(event) => setName(event.target.value)}
+                maxLength={100}
+                placeholder="e.g. Company events"
                 disabled={createLoading}
+                className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 disabled:bg-slate-50"
               />
-            </div>
+            </label>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Images (multiple allowed)</label>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleCreateFiles}
-                disabled={createLoading}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-              />
-              <p className="text-xs text-gray-500 mt-1">Max 10 images recommended</p>
+              <label className="block text-sm font-semibold text-slate-700">
+                Collection images
+              </label>
+              <label className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-7 text-center transition hover:border-indigo-300 hover:bg-indigo-50/40">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
+                  <Upload size={19} />
+                </span>
+                <span className="mt-3 text-sm font-semibold text-slate-700">
+                  Choose images to upload
+                </span>
+                <span className="mt-1 text-xs text-slate-500">
+                  JPG, PNG, GIF or WEBP · up to {MAX_IMAGES} images
+                </span>
+                <input
+                  ref={createFileInput}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleCreateFiles}
+                  disabled={createLoading || files.length >= MAX_IMAGES}
+                  className="sr-only"
+                />
+              </label>
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                <span>Selected images</span>
+                <span className="font-semibold text-slate-700">
+                  {files.length}/{MAX_IMAGES}
+                </span>
+              </div>
             </div>
 
             {previews.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mt-4">
-                {previews.map((url, i) => (
-                  <div key={i} className="relative">
-                    <img src={url} alt="preview" className="w-full h-24 object-cover rounded" />
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {previews.map((url, index) => (
+                  <div
+                    key={url}
+                    className="group relative aspect-square overflow-hidden rounded-xl bg-slate-100"
+                  >
+                    <img
+                      src={url}
+                      alt={`Selected gallery image ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
                     <button
                       type="button"
-                      onClick={() => removeCreatePreview(i)}
-                      className="absolute top-1 right-1 bg-red-600 text-white w-6 h-6 rounded-full text-lg leading-none"
+                      onClick={() => removeCreatePreview(index)}
                       disabled={createLoading}
+                      aria-label={`Remove selected image ${index + 1}`}
+                      className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950/75 text-white opacity-100 transition hover:bg-red-600 sm:opacity-0 sm:group-hover:opacity-100"
                     >
-                      ×
+                      <X size={14} />
                     </button>
                   </div>
                 ))}
               </div>
             )}
 
-            {createMessage.text && (
-              <div className={`p-3 rounded text-center ${createMessage.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                {createMessage.text}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={createLoading || !name.trim() || files.length === 0}
-              className={`w-full py-3 rounded-lg text-white font-semibold ${createLoading ? "bg-gray-400" : "bg-indigo-600 hover:bg-indigo-700"} disabled:opacity-60`}
-            >
-              {createLoading ? "Uploading..." : "Create Item"}
-            </button>
+            <div className="flex gap-2 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={resetCreateForm}
+                disabled={createLoading || (!name && !files.length)}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Clear
+              </button>
+              <button
+                type="submit"
+                disabled={createLoading}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {createLoading ? (
+                  <LoaderCircle size={16} className="animate-spin" />
+                ) : (
+                  <Plus size={16} />
+                )}
+                {createLoading ? "Uploading..." : "Create collection"}
+              </button>
+            </div>
           </form>
         </div>
 
-        {/* GALLERY LIST */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold mb-6">Gallery Items</h2>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-slate-900">Your collections</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Browse and manage uploaded gallery albums.
+              </p>
+            </div>
+            <label className="relative w-full sm:max-w-xs">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="search"
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder="Search collections..."
+                className="h-10 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
+              />
+            </label>
+          </div>
 
           {loadingItems ? (
-            <p className="text-center py-10">Loading gallery...</p>
+            <div className="flex min-h-64 items-center justify-center gap-3 text-sm text-slate-500">
+              <LoaderCircle size={19} className="animate-spin text-indigo-600" />
+              Loading collections...
+            </div>
           ) : error ? (
-            <p className="text-red-600 text-center py-10">{error}</p>
-          ) : galleryItems.length === 0 ? (
-            <p className="text-center py-10 text-gray-500">No items yet</p>
+            <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+              <AlertCircle size={28} className="text-red-400" />
+              <p className="mt-3 font-semibold text-slate-800">
+                Couldn’t load collections
+              </p>
+              <p className="mt-1 max-w-sm text-sm text-slate-500">{error}</p>
+              <button
+                type="button"
+                onClick={fetchGalleryItems}
+                className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                Try again
+              </button>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                <Images size={22} />
+              </span>
+              <p className="mt-3 font-semibold text-slate-800">
+                {searchText ? "No matching collections" : "No collections yet"}
+              </p>
+              <p className="mt-1 max-w-sm text-sm text-slate-500">
+                {searchText
+                  ? "Try a different search term."
+                  : "Create your first collection using the form."}
+              </p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {galleryItems.map((item) => (
-                <div key={item._id} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition">
-                  {item.images?.length > 0 && (
-                    <img
-                      src={item.images[0]} // assuming backend returns full image URLs
-                      alt={item.name}
-                      className="w-full h-48 object-cover"
-                    />
-                  )}
+            <div className="grid gap-4 p-4 sm:grid-cols-2">
+              {filteredItems.map((item) => (
+                <article
+                  key={item._id}
+                  className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg hover:shadow-slate-900/5"
+                >
+                  <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
+                    {item.images?.[0] ? (
+                      <img
+                        src={item.images[0]}
+                        alt={item.name || "Gallery collection"}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-slate-300">
+                        <Images size={34} />
+                      </div>
+                    )}
+                    <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-lg bg-slate-950/75 px-2.5 py-1.5 text-xs font-semibold text-white backdrop-blur">
+                      <Images size={13} />
+                      {item.images?.length || 0}{" "}
+                      {(item.images?.length || 0) === 1 ? "image" : "images"}
+                    </span>
+                  </div>
                   <div className="p-4">
-                    <h3 className="font-semibold text-lg mb-2">{item.name}</h3>
-                    <p className="text-sm text-gray-500 mb-3">
-                      {item.images?.length || 0} image{item.images?.length !== 1 ? "s" : ""}
-                    </p>
-                    <div className="flex gap-3">
+                    <h3 className="truncate font-semibold text-slate-900">
+                      {item.name || "Untitled collection"}
+                    </h3>
+                    <div className="mt-4 flex gap-2">
                       <button
+                        type="button"
                         onClick={() => openEditModal(item)}
-                        className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 text-sm"
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
                       >
+                        <Pencil size={14} />
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(item._id)}
-                        className="flex-1 bg-red-600 text-white py-2 rounded hover:bg-red-700 text-sm"
+                        type="button"
+                        onClick={() => handleDelete(item)}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-100 px-3 py-2 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
                       >
+                        <Trash2 size={14} />
                         Delete
                       </button>
                     </div>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           )}
         </div>
+      </section>
 
-        {/* EDIT MODAL */}
-        {editModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
-              <h3 className="text-xl font-bold mb-5">Edit Gallery Item</h3>
+      {editModalOpen && editingItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeEditModal();
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-gallery-title"
+            className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5 sm:p-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">
+                  Gallery management
+                </p>
+                <h2
+                  id="edit-gallery-title"
+                  className="mt-1 text-xl font-bold text-slate-900"
+                >
+                  Edit collection
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                disabled={editLoading}
+                aria-label="Close edit collection"
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-              <form onSubmit={handleEditSubmit} className="space-y-5">
+            <form onSubmit={handleEditSubmit} className="space-y-5 p-5 sm:p-6">
+              <label className="block text-sm font-semibold text-slate-700">
+                Collection name
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(event) => setEditName(event.target.value)}
+                  maxLength={100}
+                  disabled={editLoading}
+                  className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 disabled:bg-slate-50"
+                />
+              </label>
+
+              {editingItem.images?.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Title / Name</label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full border rounded-lg px-4 py-2.5"
-                  />
+                  <p className="mb-2 text-sm font-semibold text-slate-700">
+                    Current images ({editingItem.images.length})
+                  </p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {editingItem.images.map((image, index) => (
+                      <div
+                        key={`${image}-${index}`}
+                        className="aspect-square overflow-hidden rounded-xl bg-slate-100"
+                      >
+                        <img
+                          src={image}
+                          alt={`${editingItem.name} ${index + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">Add more images (optional)</label>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700">
+                  Add more images
+                </label>
+                <label className="mt-2 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition hover:border-indigo-300 hover:bg-indigo-50/40">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-indigo-600 shadow-sm">
+                    <Upload size={17} />
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    <span className="block font-semibold text-slate-700">
+                      Choose additional images
+                    </span>
+                    Up to {MAX_IMAGES} images total
+                  </span>
                   <input
+                    ref={editFileInput}
                     type="file"
                     multiple
                     accept="image/*"
                     onChange={handleEditFiles}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-indigo-50 file:text-indigo-700"
+                    disabled={
+                      editLoading ||
+                      (editingItem.images?.length || 0) + editFiles.length >=
+                        MAX_IMAGES
+                    }
+                    className="sr-only"
                   />
+                </label>
+              </div>
+
+              {editPreviews.length > 0 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {editPreviews.map((url, index) => (
+                    <div
+                      key={url}
+                      className="group relative aspect-square overflow-hidden rounded-xl bg-slate-100"
+                    >
+                      <img
+                        src={url}
+                        alt={`New image ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeEditPreview(index)}
+                        disabled={editLoading}
+                        aria-label={`Remove new image ${index + 1}`}
+                        className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950/75 text-white transition hover:bg-red-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
+              )}
 
-                {editPreviews.length > 0 && (
-                  <div className="grid grid-cols-4 gap-2">
-                    {editPreviews.map((url, i) => (
-                      <div key={i} className="relative">
-                        <img src={url} alt="new" className="w-full h-20 object-cover rounded" />
-                        <button
-                          type="button"
-                          onClick={() => removeEditPreview(i)}
-                          className="absolute top-0 right-0 bg-red-600 text-white w-5 h-5 rounded-full text-xs"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {editMessage.text && (
-                  <div className={`p-3 rounded text-center ${editMessage.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                    {editMessage.text}
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="submit"
-                    disabled={editLoading}
-                    className={`flex-1 py-2.5 rounded-lg text-white ${editLoading ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"}`}
-                  >
-                    {editLoading ? "Saving..." : "Save Changes"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditModalOpen(false)}
-                    className="flex-1 py-2.5 bg-gray-300 rounded-lg hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  disabled={editLoading}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  {editLoading ? (
+                    <LoaderCircle size={16} className="animate-spin" />
+                  ) : (
+                    <Check size={16} />
+                  )}
+                  {editLoading ? "Saving..." : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   );
 };

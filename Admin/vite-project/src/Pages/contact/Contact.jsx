@@ -1,109 +1,85 @@
-// src/components/ContactList.jsx
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import DataTable from "react-data-table-component";
+import {
+  CalendarDays,
+  Mail,
+  MessageSquareText,
+  Phone,
+  RefreshCw,
+  Search,
+  Trash2,
+  UsersRound,
+} from "lucide-react";
+import { toast } from "react-toastify";
 
-const columns = [
-  {
-    name: "Name",
-    selector: (row) => row.username,
-    sortable: true,
-    cell: (row) => (
-      <div className="font-medium text-gray-900">{row.username}</div>
-    ),
-  },
-  {
-    name: "Email",
-    selector: (row) => row.email,
-    sortable: true,
-  },
-  {
-    name: "Phone",
-    selector: (row) => row.phone,
-    sortable: true,
-  },
-  {
-    name: "Message",
-    selector: (row) => row.message,
-    sortable: false,
-    wrap: true,
-    grow: 2,
-  },
-  {
-    name: "Submitted At",
-    selector: (row) => row.createdAt,
-    sortable: true,
-    format: (row) => new Date(row.createdAt).toLocaleString(),
-  },
-  {
-    name: "Actions",
-    right: true,
-    cell: (row) => (
-      <button
-        onClick={() => row.handleDelete(row._id)}
-        className="text-red-600 hover:text-red-800 font-medium transition-colors px-3 py-1 rounded hover:bg-red-50"
-      >
-        Delete
-      </button>
-    ),
-  },
-];
+const API_URL = "https://api.aiknotsit.com/api/contact";
+
+const formatDate = (value) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+};
 
 const customStyles = {
   table: {
     style: {
       backgroundColor: "transparent",
-      color: "#111827",
+      color: "#0f172a",
     },
   },
   headRow: {
     style: {
-      backgroundColor: "#f9fafb",
-      borderBottom: "2px solid #e5e7eb",
-      color: "#111827",
+      minHeight: "48px",
+      backgroundColor: "#f8fafc",
+      borderBottom: "1px solid #e2e8f0",
     },
   },
   headCells: {
     style: {
-      fontSize: "0.95rem",
-      fontWeight: 600,
-      padding: "12px 16px",
-      color: "#111827",
+      color: "#64748b",
+      fontSize: "11px",
+      fontWeight: 700,
+      letterSpacing: "0.06em",
+      textTransform: "uppercase",
+      paddingLeft: "20px",
+      paddingRight: "20px",
     },
   },
   rows: {
     style: {
+      minHeight: "68px",
       backgroundColor: "#ffffff",
-      borderBottom: "1px solid #f3f4f6",
-      fontSize: "0.95rem",
+      borderBottom: "1px solid #f1f5f9",
+      fontSize: "13px",
       "&:hover": {
-        backgroundColor: "#f9fafb !important",
+        backgroundColor: "#f8fafc !important",
       },
     },
   },
   cells: {
     style: {
-      padding: "12px 16px",
+      paddingLeft: "20px",
+      paddingRight: "20px",
     },
   },
   pagination: {
     style: {
-      backgroundColor: "#ffffff",
-      color: "#374151",
-      borderTop: "1px solid #e5e7eb",
-      minHeight: "52px",
+      minHeight: "58px",
+      color: "#64748b",
+      borderTop: "1px solid #f1f5f9",
     },
     pageButtonsStyle: {
-      color: "#374151",
-      fill: "#374151",
-      backgroundColor: "transparent",
-      borderRadius: "4px",
+      color: "#475569",
+      fill: "#475569",
+      borderRadius: "8px",
       "&:hover:not(:disabled)": {
-        backgroundColor: "#f3f4f6",
-      },
-      "&:focus": {
-        outline: "none",
-        backgroundColor: "#e5e7eb",
+        backgroundColor: "#eef2ff",
       },
     },
   },
@@ -112,112 +88,289 @@ const customStyles = {
 const Contact = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
   const [filterText, setFilterText] = useState("");
 
-  const fetchContacts = async () => {
+  const fetchContacts = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-      setError(null);
-
-      const response = await axios.get("https://api.aiknotsit.com/api/contact");
-
+      const response = await axios.get(API_URL);
       const result = response.data;
-      // Assuming the response is { data: [...] } or just [...]
-      const contacts = Array.isArray(result) ? result : result.data || [];
+      const contacts = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.data)
+          ? result.data
+          : [];
       setData(contacts);
-    } catch (err) {
-      console.error("Fetch error:", err);
-      setError(err.message || "Failed to load contacts");
+    } catch (requestError) {
+      const message =
+        requestError.response?.data?.message ||
+        requestError.message ||
+        "Failed to load contact messages.";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchContacts();
-  }, []);
+  }, [fetchContacts]);
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this contact?")) {
+    if (
+      !window.confirm("Are you sure you want to delete this contact message?")
+    ) {
       return;
     }
 
     try {
-      await axios.delete(`https://api.aiknotsit.com/api/contact/${id}`);
-
-      // Remove from UI
-      setData((prev) => prev.filter((item) => item._id !== id));
-      alert("Contact deleted successfully");
-    } catch (err) {
-      console.error("Delete error:", err);
-      alert("Failed to delete contact: " + err.message);
+      await axios.delete(`${API_URL}/${id}`);
+      setData((current) => current.filter((item) => item._id !== id));
+      toast.success("Contact message deleted.");
+    } catch (requestError) {
+      toast.error(
+        requestError.response?.data?.message ||
+          requestError.message ||
+          "Failed to delete contact message.",
+      );
     }
   };
 
-  // Add delete handler to each row object
-  const rowsWithDelete = data.map((row) => ({
-    ...row,
-    handleDelete,
-  }));
+  const filteredItems = useMemo(() => {
+    const search = filterText.trim().toLowerCase();
+    return data
+      .filter((item) =>
+        [item.username, item.email, item.phone, item.message]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(search)),
+      )
+      .map((item) => ({ ...item, handleDelete }));
+  }, [data, filterText]);
 
-  const filteredItems = rowsWithDelete.filter(
-    (item) =>
-      (item.username?.toLowerCase() || "").includes(filterText.toLowerCase()) ||
-      (item.email?.toLowerCase() || "").includes(filterText.toLowerCase()) ||
-      (item.phone?.toLowerCase() || "").includes(filterText.toLowerCase()) ||
-      (item.message?.toLowerCase() || "").includes(filterText.toLowerCase()),
+  const columns = useMemo(
+    () => [
+      {
+        name: "Contact",
+        selector: (row) => row.username || "",
+        sortable: true,
+        minWidth: "180px",
+        cell: (row) => (
+          <div className="min-w-0 py-2">
+            <p className="truncate font-semibold text-slate-900">
+              {row.username || "Unknown"}
+            </p>
+            <a
+              href={`mailto:${row.email || ""}`}
+              className="mt-1 flex max-w-full items-center gap-1.5 truncate text-xs text-slate-500 transition hover:text-indigo-600"
+            >
+              <Mail size={12} className="shrink-0" />
+              <span className="truncate">
+                {row.email || "No email provided"}
+              </span>
+            </a>
+          </div>
+        ),
+      },
+      {
+        name: "Phone",
+        selector: (row) => row.phone || "",
+        sortable: true,
+        minWidth: "140px",
+        cell: (row) =>
+          row.phone ? (
+            <a
+              href={`tel:${row.phone}`}
+              className="inline-flex items-center gap-2 text-sm text-slate-600 transition hover:text-indigo-600"
+            >
+              <Phone size={14} className="text-slate-400" />
+              {row.phone}
+            </a>
+          ) : (
+            <span className="text-slate-400">—</span>
+          ),
+      },
+      {
+        name: "Message",
+        selector: (row) => row.message || "",
+        wrap: true,
+        grow: 2,
+        minWidth: "240px",
+        cell: (row) => (
+          <p
+            className="line-clamp-2 py-3 leading-5 text-slate-600"
+            title={row.message || ""}
+          >
+            {row.message || "No message provided"}
+          </p>
+        ),
+      },
+      {
+        name: "Received",
+        selector: (row) => row.createdAt || "",
+        sortable: true,
+        minWidth: "170px",
+        cell: (row) => (
+          <span className="inline-flex items-center gap-2 whitespace-nowrap text-xs text-slate-500">
+            <CalendarDays size={14} className="text-slate-400" />
+            {formatDate(row.createdAt)}
+          </span>
+        ),
+      },
+      {
+        name: "Action",
+        right: true,
+        minWidth: "110px",
+        cell: (row) => (
+          <button
+            type="button"
+            onClick={() => row.handleDelete(row._id)}
+            aria-label={`Delete contact message from ${row.username || "user"}`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 px-3 py-2 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+        ),
+      },
+    ],
+    [],
   );
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="p-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="text-xl font-semibold text-gray-900">
-          Contact Messages
-        </h2>
-
-        <input
-          type="text"
-          placeholder="Search by name, email, phone or message..."
-          value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
-          className="bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500/40 w-full sm:w-96 transition"
-        />
-      </div>
-
-      {loading ? (
-        <div className="py-16 text-center text-gray-500">
-          <div className="animate-spin inline-block w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full mb-4"></div>
-          <p>Loading contacts...</p>
-        </div>
-      ) : error ? (
-        <div className="py-16 text-center">
-          <p className="text-red-600 mb-4">Error: {error}</p>
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-6 text-white shadow-xl shadow-slate-900/10 sm:p-8">
+        <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-indigo-100">
+              <MessageSquareText size={14} />
+              Inbox management
+            </span>
+            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+              Contact messages
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
+              Review messages submitted through your website and get in touch
+              with customers.
+            </p>
+          </div>
           <button
+            type="button"
             onClick={fetchContacts}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
           >
-            Try Again
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+            Refresh
           </button>
         </div>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={filteredItems}
-          customStyles={customStyles}
-          pagination
-          paginationPerPage={10}
-          paginationRowsPerPageOptions={[5, 10, 15, 20, 30]}
-          highlightOnHover
-          pointerOnHover
-          responsive
-          noDataComponent={
-            <div className="py-10 text-gray-500 text-center">
-              No matching contacts found
-            </div>
-          }
-        />
-      )}
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-500">
+              Total messages
+            </span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <UsersRound size={19} />
+            </span>
+          </div>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+            {loading ? "—" : data.length}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-500">
+              Search results
+            </span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+              <Search size={19} />
+            </span>
+          </div>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+            {loading ? "—" : filteredItems.length}
+          </p>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div>
+            <h2 className="font-semibold text-slate-900">All messages</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Search by name, email, phone number, or message.
+            </p>
+          </div>
+          <label className="relative w-full sm:max-w-sm">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="search"
+              placeholder="Search messages..."
+              value={filterText}
+              onChange={(event) => setFilterText(event.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
+            />
+          </label>
+        </div>
+
+        {error && !loading ? (
+          <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+            <p className="font-semibold text-slate-800">
+              Couldn’t load contact messages
+            </p>
+            <p className="mt-1 max-w-md text-sm text-slate-500">{error}</p>
+            <button
+              type="button"
+              onClick={fetchContacts}
+              className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filteredItems}
+            customStyles={customStyles}
+            pagination
+            paginationPerPage={10}
+            paginationRowsPerPageOptions={[5, 10, 15, 20, 30]}
+            highlightOnHover
+            responsive
+            progressPending={loading}
+            progressComponent={
+              <div className="flex min-h-48 items-center gap-3 text-sm text-slate-500">
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                Loading contact messages...
+              </div>
+            }
+            noDataComponent={
+              <div className="py-12 text-center">
+                <MessageSquareText
+                  size={28}
+                  className="mx-auto mb-3 text-slate-300"
+                />
+                <p className="text-sm font-semibold text-slate-700">
+                  {filterText ? "No matching messages" : "No messages yet"}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {filterText
+                    ? "Try another search term."
+                    : "New contact form submissions will appear here."}
+                </p>
+              </div>
+            }
+          />
+        )}
+      </section>
     </div>
   );
 };

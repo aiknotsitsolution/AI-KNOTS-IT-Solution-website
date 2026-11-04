@@ -6,15 +6,22 @@ import {
   ArrowUpRight,
   BookOpen,
   BriefcaseBusiness,
+  ChevronLeft,
+  ChevronRight,
   Cpu,
+  ExternalLink,
   FolderKanban,
   Layers3,
   Mail,
   MessageSquare,
   Newspaper,
   RefreshCw,
+  UserRound,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
   Legend,
   Line,
@@ -49,7 +56,18 @@ const METRIC_ICONS = {
 const EMPTY_DATA = {
   metrics: [],
   recentActivity: [],
+  recentWorkItems: [],
+  recentWorkPagination: {
+    page: 1,
+    pageSize: 6,
+    total: 0,
+    totalPages: 1,
+  },
   comparison: null,
+};
+const EMPTY_RECORDS = {
+  items: [],
+  pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1 },
 };
 
 const formatDate = (value) => {
@@ -79,6 +97,16 @@ const formatChange = (current, previous) => {
   }`;
 };
 
+const getPlainText = (value) =>
+  typeof value === "string"
+    ? value
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/\s+/g, " ")
+        .trim()
+    : "";
+
 const Dashboard = () => {
   const [data, setData] = useState(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
@@ -86,6 +114,12 @@ const Dashboard = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
+  const [recentWorkPage, setRecentWorkPage] = useState(1);
+  const [selectedMetricKey, setSelectedMetricKey] = useState("all");
+  const [recordPage, setRecordPage] = useState(1);
+  const [metricRecords, setMetricRecords] = useState(EMPTY_RECORDS);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordsError, setRecordsError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -96,6 +130,7 @@ const Dashboard = () => {
 
       try {
         const response = await axios.get(`${API_URL}/api/dashboard/analytics`, {
+          params: { recentWorkPage, recentWorkPageSize: 6 },
           signal: controller.signal,
         });
         const payload = response.data?.data;
@@ -104,7 +139,9 @@ const Dashboard = () => {
           response.data?.success !== true ||
           !Array.isArray(payload?.metrics) ||
           payload.metrics.some((metric) => !Array.isArray(metric.daily)) ||
-          !Array.isArray(payload?.recentActivity)
+          !Array.isArray(payload?.recentActivity) ||
+          !Array.isArray(payload?.recentWorkItems) ||
+          !payload?.recentWorkPagination
         ) {
           throw new Error("Dashboard analytics response is incomplete.");
         }
@@ -125,7 +162,56 @@ const Dashboard = () => {
 
     loadDashboard();
     return () => controller.abort();
-  }, [refreshKey]);
+  }, [recentWorkPage, refreshKey]);
+
+  useEffect(() => {
+    if (selectedMetricKey === "all") {
+      setMetricRecords(EMPTY_RECORDS);
+      setRecordsError("");
+      setRecordsLoading(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const loadMetricRecords = async () => {
+      setRecordsLoading(true);
+      setRecordsError("");
+      try {
+        const response = await axios.get(
+          `${API_URL}/api/dashboard/metrics/${selectedMetricKey}/records`,
+          {
+            params: { page: recordPage, pageSize: 10 },
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+            },
+            signal: controller.signal,
+          },
+        );
+        const payload = response.data?.data;
+        if (
+          response.data?.success !== true ||
+          !Array.isArray(payload?.items) ||
+          !payload?.pagination
+        ) {
+          throw new Error("Metric records response is incomplete.");
+        }
+        setMetricRecords(payload);
+      } catch (requestError) {
+        if (requestError.code === "ERR_CANCELED") return;
+        console.error("Failed to load dashboard metric records:", requestError);
+        setRecordsError(
+          requestError.response?.data?.message ||
+            requestError.message ||
+            "Unable to load records for this metric.",
+        );
+      } finally {
+        if (!controller.signal.aborted) setRecordsLoading(false);
+      }
+    };
+
+    loadMetricRecords();
+    return () => controller.abort();
+  }, [recordPage, refreshKey, selectedMetricKey]);
 
   const totalPages = Math.max(
     1,
@@ -136,9 +222,18 @@ const Dashboard = () => {
     (safePage - 1) * itemsPerPage,
     safePage * itemsPerPage,
   );
-  const recentWorks = data.recentActivity
-    .filter((item) => item.type === "recentWork")
-    .slice(0, 4);
+  const selectedMetric = data.metrics.find(
+    (metric) => metric.key === selectedMetricKey,
+  );
+  const chartMetrics = selectedMetric ? [selectedMetric] : data.metrics;
+  const handleMetricCardClick = (metricKey) => {
+    const nextMetricKey = selectedMetricKey === metricKey ? "all" : metricKey;
+    setSelectedMetricKey(nextMetricKey);
+    setRecordPage(1);
+    setMetricRecords(EMPTY_RECORDS);
+    setRecordsError("");
+    setRecordsLoading(nextMetricKey !== "all");
+  };
   const currentMonthChartData = useMemo(() => {
     const days = new Map();
     data.metrics.forEach((metric) => {
@@ -185,7 +280,7 @@ const Dashboard = () => {
               Track your content, enquiries, and recent work in one place.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <p className="hidden text-right text-xs leading-5 text-slate-400 sm:block">
               Monthly comparison
               <br />
@@ -193,6 +288,13 @@ const Dashboard = () => {
                 Same days vs {previousMonthName}
               </span>
             </p>
+            <Link
+              to="/profile"
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
+            >
+              <UserRound size={16} />
+              My profile
+            </Link>
             <button
               type="button"
               onClick={() => setRefreshKey((key) => key + 1)}
@@ -234,9 +336,17 @@ const Dashboard = () => {
           const isDown = difference < 0;
 
           return (
-            <article
+            <button
+              type="button"
               key={metric.key}
-              className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/60"
+              onClick={() => handleMetricCardClick(metric.key)}
+              aria-pressed={selectedMetricKey === metric.key}
+              aria-label={`Show ${metric.label} chart and records`}
+              className={`group rounded-2xl border bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                selectedMetricKey === metric.key
+                  ? "border-indigo-400 ring-2 ring-indigo-100"
+                  : "border-slate-200/80 hover:border-slate-300"
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -251,6 +361,9 @@ const Dashboard = () => {
                     )}
                   </p>
                   <p className="mt-1 text-xs text-slate-400">Total records</p>
+                  <p className="mt-2 text-[11px] font-semibold text-indigo-600 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+                    Click to view records
+                  </p>
                 </div>
                 <span
                   className="rounded-2xl p-3"
@@ -292,7 +405,7 @@ const Dashboard = () => {
                     : formatChange(metric.currentMonth, metric.previousMonth)}
                 </span>
               </div>
-            </article>
+            </button>
           );
         })}
       </section>
@@ -301,21 +414,36 @@ const Dashboard = () => {
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-900">
-              All metrics · {currentMonthName}
+              {selectedMetric
+                ? `${selectedMetric.label} · ${currentMonthName}`
+                : `All metrics · ${currentMonthName}`}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Daily trend for every dashboard metric in one chart.
+              {selectedMetric
+                ? `Daily trend for ${selectedMetric.label.toLowerCase()}. Click the selected card again to show all metrics.`
+                : "Daily trend for every dashboard metric in one chart. Select a card to focus on that metric."}
             </p>
           </div>
-          {data.comparison?.throughDay && (
-            <span className="w-fit rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700">
-              Through day {data.comparison.throughDay}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {selectedMetric && (
+              <button
+                type="button"
+                onClick={() => handleMetricCardClick(selectedMetric.key)}
+                className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-indigo-200 hover:text-indigo-700"
+              >
+                Show all metrics
+              </button>
+            )}
+            {data.comparison?.throughDay && (
+              <span className="w-fit rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700">
+                Through day {data.comparison.throughDay}
+              </span>
+            )}
+          </div>
         </div>
         <article className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-3 flex flex-wrap gap-3">
-            {data.metrics.map((metric) => {
+            {chartMetrics.map((metric) => {
               const Icon = METRIC_ICONS[metric.key] || Activity;
               const color = METRIC_COLORS[metric.key] || "#6366f1";
               return (
@@ -378,7 +506,7 @@ const Dashboard = () => {
                         ?.label || key
                     }
                   />
-                  {data.metrics.map((metric) => (
+                  {chartMetrics.map((metric) => (
                     <Line
                       key={metric.key}
                       type="monotone"
@@ -398,8 +526,251 @@ const Dashboard = () => {
         </article>
       </section>
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-5">
-        <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm xl:col-span-3">
+      {selectedMetric && (
+        <section
+          aria-label={`${selectedMetric.label} records`}
+          className="scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
+        >
+          <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="flex items-start gap-3">
+              <span
+                className="mt-0.5 rounded-xl p-2.5"
+                style={{
+                  color: METRIC_COLORS[selectedMetric.key] || "#6366f1",
+                  backgroundColor: `${METRIC_COLORS[selectedMetric.key] || "#6366f1"}14`,
+                }}
+              >
+                {(() => {
+                  const SelectedIcon =
+                    METRIC_ICONS[selectedMetric.key] || Activity;
+                  return <SelectedIcon size={19} />;
+                })()}
+              </span>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {selectedMetric.label} records
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Showing the actual records included in this card&apos;s total
+                  of{" "}
+                  <span className="font-semibold text-slate-700">
+                    {selectedMetric.total.toLocaleString()}
+                  </span>
+                  .
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                {selectedMetric.currentMonth.toLocaleString()} this month
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedMetricKey("all");
+                  setRecordPage(1);
+                  setMetricRecords(EMPTY_RECORDS);
+                  setRecordsError("");
+                  setRecordsLoading(false);
+                }}
+                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-indigo-200 hover:text-indigo-700"
+              >
+                Close details
+              </button>
+            </div>
+          </div>
+
+          {recordsError && (
+            <div
+              role="alert"
+              className="m-5 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <span>{recordsError}</span>
+              <button
+                type="button"
+                onClick={() => setRefreshKey((key) => key + 1)}
+                className="self-start font-semibold underline underline-offset-2 sm:self-auto"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {recordsLoading ? (
+            <div className="grid gap-3 p-5 md:grid-cols-2 sm:p-6">
+              {[1, 2, 3, 4].map((item) => (
+                <div
+                  key={item}
+                  className="h-32 animate-pulse rounded-xl bg-slate-50"
+                />
+              ))}
+            </div>
+          ) : !recordsError && metricRecords.items.length ? (
+            <>
+              <div className="grid gap-3 p-5 md:grid-cols-2 sm:p-6">
+                {metricRecords.items.map((item) => {
+                  const description = getPlainText(item.description);
+                  const externalLink =
+                    typeof item.link === "string" &&
+                    /^https?:\/\//i.test(item.link);
+
+                  return (
+                    <article
+                      key={item._id}
+                      className="flex min-w-0 gap-4 rounded-xl border border-slate-200/80 p-4 transition hover:border-slate-300 hover:bg-slate-50/60"
+                    >
+                      {item.images?.[0] ? (
+                        <img
+                          src={item.images[0]}
+                          alt=""
+                          loading="lazy"
+                          className="h-16 w-16 shrink-0 rounded-xl bg-slate-100 object-cover"
+                        />
+                      ) : (
+                        <span
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
+                          style={{
+                            color:
+                              METRIC_COLORS[selectedMetric.key] || "#6366f1",
+                            backgroundColor: `${METRIC_COLORS[selectedMetric.key] || "#6366f1"}14`,
+                          }}
+                        >
+                          {(() => {
+                            const RecordIcon =
+                              METRIC_ICONS[selectedMetric.key] || Activity;
+                            return <RecordIcon size={20} />;
+                          })()}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <h3 className="break-words text-sm font-semibold text-slate-900">
+                            {item.title || "Untitled record"}
+                          </h3>
+                          <time className="shrink-0 text-[11px] text-slate-400">
+                            {formatDate(item.createdAt)}
+                          </time>
+                        </div>
+                        {item.subtitle && (
+                          <p className="mt-1 text-xs font-medium text-slate-500">
+                            {item.subtitle}
+                          </p>
+                        )}
+                        {item.category && (
+                          <span className="mt-2 inline-flex max-w-full truncate rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700">
+                            {item.category}
+                          </span>
+                        )}
+                        {description && (
+                          <p className="mt-2 line-clamp-3 break-words text-xs leading-5 text-slate-600">
+                            {description}
+                          </p>
+                        )}
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                          {item.email && (
+                            <a
+                              href={`mailto:${item.email}`}
+                              className="break-all text-xs font-medium text-indigo-600 hover:underline"
+                            >
+                              {item.email}
+                            </a>
+                          )}
+                          {item.phone && (
+                            <a
+                              href={`tel:${item.phone}`}
+                              className="text-xs font-medium text-slate-600 hover:text-indigo-600"
+                            >
+                              {item.phone}
+                            </a>
+                          )}
+                          {item.link && (
+                            <a
+                              href={item.link}
+                              target={externalLink ? "_blank" : undefined}
+                              rel={externalLink ? "noreferrer" : undefined}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline"
+                            >
+                              View record <ExternalLink size={12} />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-4 sm:px-6">
+                <p className="text-xs text-slate-500">
+                  Showing{" "}
+                  <span className="font-semibold text-slate-700">
+                    {(metricRecords.pagination.page - 1) *
+                      metricRecords.pagination.pageSize +
+                      1}
+                    –
+                    {Math.min(
+                      metricRecords.pagination.page *
+                        metricRecords.pagination.pageSize,
+                      metricRecords.pagination.total,
+                    )}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-slate-700">
+                    {metricRecords.pagination.total}
+                  </span>{" "}
+                  records
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRecordsLoading(true);
+                      setRecordPage((page) => Math.max(1, page - 1));
+                    }}
+                    disabled={recordPage <= 1 || recordsLoading}
+                    className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronLeft size={14} /> Previous
+                  </button>
+                  <span className="min-w-10 text-center text-xs font-semibold text-slate-600">
+                    {metricRecords.pagination.page}/
+                    {metricRecords.pagination.totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRecordsLoading(true);
+                      setRecordPage((page) =>
+                        Math.min(metricRecords.pagination.totalPages, page + 1),
+                      );
+                    }}
+                    disabled={
+                      recordPage >= metricRecords.pagination.totalPages ||
+                      recordsLoading
+                    }
+                    className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : !recordsError ? (
+            <div className="px-6 py-14 text-center">
+              <Activity className="mx-auto mb-3 text-slate-300" size={30} />
+              <p className="text-sm font-semibold text-slate-600">
+                No records in this category yet
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                This card&apos;s total is zero.
+              </p>
+            </div>
+          ) : null}
+        </section>
+      )}
+
+      <section className="grid grid-cols-1 gap-5">
+        <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
           <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
             <div>
               <h2 className="text-lg font-bold text-slate-900">
@@ -552,7 +923,7 @@ const Dashboard = () => {
           )}
         </article>
 
-        <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm xl:col-span-2">
+        <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
           <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Recent work</h2>
@@ -565,53 +936,212 @@ const Dashboard = () => {
             </span>
           </div>
 
-          {loading ? (
-            <div className="space-y-4 p-6" aria-label="Loading recent work">
-              {[1, 2, 3].map((item) => (
-                <div key={item} className="flex animate-pulse gap-3">
-                  <span className="h-10 w-10 rounded-xl bg-slate-100" />
-                  <span className="h-10 flex-1 rounded-xl bg-slate-50" />
+          <div className="grid grid-cols-1 divide-y divide-slate-100 xl:grid-cols-2 xl:divide-x xl:divide-y-0">
+            <div className="min-w-0">
+              {loading ? (
+                <div className="space-y-4 p-6" aria-label="Loading recent work">
+                  {[1, 2, 3, 4].map((item) => (
+                    <div key={item} className="flex animate-pulse gap-3">
+                      <span className="h-12 w-12 rounded-xl bg-slate-100" />
+                      <span className="h-12 flex-1 rounded-xl bg-slate-50" />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : recentWorks.length ? (
-            <div className="divide-y divide-slate-100">
-              {recentWorks.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 px-5 py-4 sm:px-6"
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-xs font-bold text-pink-700">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-800">
-                      {item.title}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      Added to Recent Work
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-right text-[11px] text-slate-400">
-                    {formatDate(item.createdAt)}
+              ) : data.recentWorkItems.length ? (
+                <div className="divide-y divide-slate-100">
+                  {data.recentWorkItems.map((item, index) => (
+                    <div
+                      key={item._id}
+                      className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-slate-50/80 sm:px-6"
+                    >
+                      {item.images?.[0] ? (
+                        <img
+                          src={item.images[0]}
+                          alt=""
+                          loading="lazy"
+                          className="h-12 w-12 shrink-0 rounded-xl bg-slate-100 object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-xs font-bold text-pink-700">
+                          {String(
+                            (recentWorkPage - 1) * 6 + index + 1,
+                          ).padStart(2, "0")}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-800">
+                          {item.title || "Untitled recent work"}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                          {(item.description || "Added to Recent Work")
+                            .replace(/<[^>]*>/g, " ")
+                            .replace(/\s+/g, " ")
+                            .trim()}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-right text-[11px] text-slate-400">
+                        {formatDate(item.createdAt)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex min-h-64 flex-col items-center justify-center px-6 py-12 text-center">
+                  <BriefcaseBusiness
+                    className="mx-auto mb-3 text-slate-300"
+                    size={30}
+                  />
+                  <p className="text-sm font-semibold text-slate-600">
+                    No recent work yet
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    New portfolio projects will appear here.
                   </p>
                 </div>
-              ))}
+              )}
+
+              {!loading && data.recentWorkPagination.total > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-4 sm:px-6">
+                  <p className="text-xs text-slate-500">
+                    Showing{" "}
+                    <span className="font-semibold text-slate-700">
+                      {(recentWorkPage - 1) * 6 + 1}–
+                      {Math.min(
+                        recentWorkPage * 6,
+                        data.recentWorkPagination.total,
+                      )}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-semibold text-slate-700">
+                      {data.recentWorkPagination.total}
+                    </span>{" "}
+                    projects
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRecentWorkPage((page) => Math.max(1, page - 1))
+                      }
+                      disabled={recentWorkPage <= 1 || loading}
+                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span className="min-w-10 text-center text-xs font-semibold text-slate-600">
+                      {recentWorkPage}/{data.recentWorkPagination.totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRecentWorkPage((page) =>
+                          Math.min(
+                            data.recentWorkPagination.totalPages,
+                            page + 1,
+                          ),
+                        )
+                      }
+                      disabled={
+                        recentWorkPage >=
+                          data.recentWorkPagination.totalPages || loading
+                      }
+                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="px-6 py-14 text-center">
-              <BriefcaseBusiness
-                className="mx-auto mb-3 text-slate-300"
-                size={30}
-              />
-              <p className="text-sm font-semibold text-slate-600">
-                No recent work yet
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                New portfolio projects will appear here.
-              </p>
+
+            <div className="min-w-0 p-5 sm:p-6">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-slate-800">
+                    Recent work trend
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Daily projects added in {currentMonthName}
+                  </p>
+                </div>
+                <span className="rounded-xl bg-pink-50 px-3 py-1.5 text-xs font-semibold text-pink-700">
+                  {data.metrics.find((metric) => metric.key === "recentWorks")
+                    ?.currentMonth || 0}{" "}
+                  this month
+                </span>
+              </div>
+              <div className="h-[280px]">
+                {loading ? (
+                  <div className="flex h-full animate-pulse items-center justify-center rounded-xl bg-slate-50 text-sm text-slate-400">
+                    Loading recent work trend…
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={
+                        data.metrics.find(
+                          (metric) => metric.key === "recentWorks",
+                        )?.daily || []
+                      }
+                      margin={{ top: 8, right: 8, left: -20, bottom: 4 }}
+                    >
+                      <defs>
+                        <linearGradient
+                          id="recentWorkGradient"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor={METRIC_COLORS.recentWorks}
+                            stopOpacity={0.28}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor={METRIC_COLORS.recentWorks}
+                            stopOpacity={0.02}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="#eef2f7" vertical={false} />
+                      <XAxis
+                        dataKey="day"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <Tooltip
+                        labelFormatter={(day) => `${currentMonthName} ${day}`}
+                        formatter={(value) => [value, "Projects added"]}
+                        contentStyle={{
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 12,
+                          boxShadow: "0 8px 24px rgba(15, 23, 42, .08)",
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="count"
+                        name="Projects added"
+                        stroke={METRIC_COLORS.recentWorks}
+                        strokeWidth={2.5}
+                        fill="url(#recentWorkGradient)"
+                        activeDot={{ r: 5, strokeWidth: 0 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </article>
       </section>
 

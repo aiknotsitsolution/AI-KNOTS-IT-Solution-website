@@ -153,26 +153,26 @@ const ForgotPassword = () => {
   }[step];
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7f1e9] px-4 py-10">
-      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-[#d7a977]/25 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#633638]/15 blur-3xl" />
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-100 px-4 py-10">
+      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-amber-300/25 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-slate-950/15 blur-3xl" />
 
-      <section className="relative w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl shadow-[#633638]/10 ring-1 ring-[#eadfd4] sm:p-9">
+      <section className="relative w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-200 sm:p-9">
         <div className="mb-7 text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-lg shadow-[#633638]/10 ring-1 ring-[#e8d5c2]">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-lg shadow-slate-950/10 ring-1 ring-slate-200">
             <img
               src={logo}
               alt="AI Knots IT"
               className="h-14 w-14 object-contain"
             />
           </div>
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#8b6045]">
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-700">
             AI Knots IT
           </p>
-          <h1 className="mt-4 text-2xl font-bold tracking-tight text-[#4c292b]">
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">
             {isComplete ? "Password updated" : stepContent.title}
           </h1>
-          <p className="mt-2 text-sm leading-6 text-[#806d62]">
+          <p className="mt-2 text-sm leading-6 text-slate-500">
             {isComplete
               ? "Your admin account is ready to use."
               : stepContent.description}
@@ -188,7 +188,7 @@ const ForgotPassword = () => {
               <span
                 key={stepNumber}
                 className={`h-1.5 flex-1 rounded-full ${
-                  stepNumber <= step ? "bg-[#80513e]" : "bg-[#eadfd4]"
+                  stepNumber <= step ? "bg-indigo-700" : "bg-slate-200"
                 }`}
               />
             ))}
@@ -205,12 +205,12 @@ const ForgotPassword = () => {
             <div>
               <label
                 htmlFor="email"
-                className="mb-2 block text-sm font-semibold text-[#513b35]"
+                className="mb-2 block text-sm font-semibold text-slate-700"
               >
                 Admin email address
               </label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#a28d7e]" />
+                <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
                   id="email"
                   type="email"
@@ -220,7 +220,7 @@ const ForgotPassword = () => {
                   onChange={(event) => setEmail(event.target.value)}
                   disabled={isSubmitting}
                   placeholder="you@example.com"
-                  className="h-12 w-full rounded-xl border border-[#e8ddd2] bg-[#fbf8f4] pl-12 pr-4 text-sm text-[#39292a] outline-none transition focus:border-[#9b6849] focus:bg-white focus:ring-4 focus:ring-[#9b6849]/10 disabled:opacity-60"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-600/10 disabled:opacity-60"
                 />
               </div>
             </div>
@@ -234,7 +234,7 @@ const ForgotPassword = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#633638] to-[#9b6849] text-sm font-semibold text-white shadow-lg shadow-[#633638]/20 transition hover:-translate-y-0.5 hover:from-[#512b2d] hover:to-[#80513e] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-950 to-indigo-700 text-sm font-semibold text-white shadow-lg shadow-slate-950/20 transition hover:-translate-y-0.5 hover:from-slate-900 hover:to-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? "Sending code..." : "Send verification code"}
               {!isSubmitting && <ArrowRight size={18} />}
@@ -245,12 +245,12 @@ const ForgotPassword = () => {
             <div>
               <label
                 htmlFor="otp"
-                className="mb-2 block text-sm font-semibold text-[#513b35]"
+                className="mb-2 block text-sm font-semibold text-slate-700"
               >
                 6-digit verification code
               </label>
               <div className="relative">
-                <ShieldCheck className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#a28d7e]" />
+                <ShieldCheck className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
                   id="otp"
                   type="text"
@@ -265,12 +265,12 @@ const ForgotPassword = () => {
                   }
                   disabled={isSubmitting}
                   placeholder="Enter code from your email"
-                  className="h-12 w-full rounded-xl border border-[#e8ddd2] bg-[#fbf8f4] pl-12 pr-4 text-center text-lg tracking-[0.35em] text-[#39292a] outline-none transition focus:border-[#9b6849] focus:bg-white focus:ring-4 focus:ring-[#9b6849]/10 disabled:opacity-60"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-center text-lg tracking-[0.35em] text-slate-900 outline-none transition focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-600/10 disabled:opacity-60"
                 />
               </div>
               <p
                 className={`mt-2 text-xs ${
-                  secondsRemaining === 0 ? "text-red-700" : "text-[#8b776a]"
+                  secondsRemaining === 0 ? "text-red-700" : "text-slate-500"
                 }`}
                 aria-live="polite"
               >
@@ -291,7 +291,7 @@ const ForgotPassword = () => {
               disabled={
                 isSubmitting || otp.length !== 6 || secondsRemaining === 0
               }
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#633638] to-[#9b6849] text-sm font-semibold text-white shadow-lg shadow-[#633638]/20 transition hover:-translate-y-0.5 hover:from-[#512b2d] hover:to-[#80513e] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-950 to-indigo-700 text-sm font-semibold text-white shadow-lg shadow-slate-950/20 transition hover:-translate-y-0.5 hover:from-slate-900 hover:to-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? "Verifying code..." : "Verify code"}
               {!isSubmitting && <ArrowRight size={18} />}
@@ -302,7 +302,7 @@ const ForgotPassword = () => {
                 type="button"
                 onClick={changeEmail}
                 disabled={isSubmitting}
-                className="font-semibold text-[#80513e] transition hover:text-[#4c292b] disabled:opacity-60"
+                className="font-semibold text-indigo-700 transition hover:text-slate-900 disabled:opacity-60"
               >
                 Change email
               </button>
@@ -310,7 +310,7 @@ const ForgotPassword = () => {
                 type="button"
                 onClick={sendOtp}
                 disabled={isSubmitting || secondsRemaining > 0}
-                className="font-semibold text-[#80513e] transition hover:text-[#4c292b] disabled:cursor-not-allowed disabled:text-[#a28d7e]"
+                className="font-semibold text-indigo-700 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-400"
               >
                 {secondsRemaining > 0 ? "Resend code" : "Send a new code"}
               </button>
@@ -321,12 +321,12 @@ const ForgotPassword = () => {
             <div>
               <label
                 htmlFor="password"
-                className="mb-2 block text-sm font-semibold text-[#513b35]"
+                className="mb-2 block text-sm font-semibold text-slate-700"
               >
                 New password
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#a28d7e]" />
+                <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
                   id="password"
                   type="password"
@@ -338,7 +338,7 @@ const ForgotPassword = () => {
                   onChange={(event) => setPassword(event.target.value)}
                   disabled={isSubmitting}
                   placeholder="At least 8 characters"
-                  className="h-12 w-full rounded-xl border border-[#e8ddd2] bg-[#fbf8f4] pl-12 pr-4 text-sm text-[#39292a] outline-none transition focus:border-[#9b6849] focus:bg-white focus:ring-4 focus:ring-[#9b6849]/10 disabled:opacity-60"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-600/10 disabled:opacity-60"
                 />
               </div>
             </div>
@@ -346,12 +346,12 @@ const ForgotPassword = () => {
             <div>
               <label
                 htmlFor="confirm-password"
-                className="mb-2 block text-sm font-semibold text-[#513b35]"
+                className="mb-2 block text-sm font-semibold text-slate-700"
               >
                 Confirm new password
               </label>
               <div className="relative">
-                <KeyRound className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#a28d7e]" />
+                <KeyRound className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
                   id="confirm-password"
                   type="password"
@@ -363,7 +363,7 @@ const ForgotPassword = () => {
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   disabled={isSubmitting}
                   placeholder="Re-enter your password"
-                  className="h-12 w-full rounded-xl border border-[#e8ddd2] bg-[#fbf8f4] pl-12 pr-4 text-sm text-[#39292a] outline-none transition focus:border-[#9b6849] focus:bg-white focus:ring-4 focus:ring-[#9b6849]/10 disabled:opacity-60"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-600/10 disabled:opacity-60"
                 />
               </div>
             </div>
@@ -377,7 +377,7 @@ const ForgotPassword = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#633638] to-[#9b6849] text-sm font-semibold text-white shadow-lg shadow-[#633638]/20 transition hover:-translate-y-0.5 hover:from-[#512b2d] hover:to-[#80513e] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-950 to-indigo-700 text-sm font-semibold text-white shadow-lg shadow-slate-950/20 transition hover:-translate-y-0.5 hover:from-slate-900 hover:to-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? "Updating password..." : "Update password"}
               {!isSubmitting && <ArrowRight size={18} />}
@@ -387,7 +387,7 @@ const ForgotPassword = () => {
 
         <Link
           to="/login"
-          className="mt-7 flex items-center justify-center gap-2 text-sm font-semibold text-[#80513e] transition hover:text-[#4c292b]"
+          className="mt-7 flex items-center justify-center gap-2 text-sm font-semibold text-indigo-700 transition hover:text-slate-900"
         >
           <ArrowLeft size={17} />
           {isComplete ? "Return to login" : "Back to login"}

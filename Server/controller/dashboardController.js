@@ -2,11 +2,102 @@ const Contact = require("../module/contactmodule/contactmodule");
 const Query = require("../module/querymodule/querymodule");
 const Product = require("../module/homemodule/homemodule");
 const Technology = require("../module/technologymodule/technologymodule");
-const TechNews = require("../module/techmodule/techmodule");
 const TechCategory = require("../module/technologymodule/categorymodule");
 const BlogCategory = require("../module/BlogModule/caetgorymodule");
 const RecentWork = require("../module/recentworkmodule/recentworkmodule");
 const RecentWorkCategory = require("../module/recentworkmodule/recentwrokcategory");
+
+const metricRecordConfig = {
+  contacts: {
+    model: Contact,
+    project: {
+      title: { $ifNull: ["$username", "Contact message"] },
+      email: 1,
+      phone: 1,
+      description: "$message",
+    },
+  },
+  queries: {
+    model: Query,
+    project: {
+      title: { $ifNull: ["$name", "Website query"] },
+      email: 1,
+      phone: 1,
+      category: 1,
+      description: "$message",
+    },
+  },
+  blogPosts: {
+    model: Product,
+    categoryCollection: BlogCategory.collection.name,
+    project: {
+      title: { $ifNull: ["$name", "Untitled blog"] },
+      subtitle: "$author",
+      description: 1,
+      category: {
+        $ifNull: [
+          { $arrayElemAt: ["$dashboardCategory.name", 0] },
+          { $toString: "$category" },
+        ],
+      },
+      link: { $concat: ["/blog/", { $ifNull: ["$slug", ""] }] },
+      images: 1,
+    },
+  },
+  techNews: {
+    model: Technology,
+    categoryCollection: TechCategory.collection.name,
+    project: {
+      title: { $ifNull: ["$title", "Untitled tech news"] },
+      description: 1,
+      category: {
+        $ifNull: [
+          { $arrayElemAt: ["$dashboardCategory.name", 0] },
+          { $toString: "$category" },
+        ],
+      },
+      link: 1,
+      images: 1,
+    },
+  },
+  recentWorks: {
+    model: RecentWork,
+    categoryCollection: RecentWorkCategory.collection.name,
+    project: {
+      title: { $ifNull: ["$title", "Untitled recent work"] },
+      description: 1,
+      category: {
+        $ifNull: [
+          { $arrayElemAt: ["$dashboardCategory.name", 0] },
+          { $toString: "$category" },
+        ],
+      },
+      link: 1,
+      images: 1,
+    },
+  },
+  blogCategories: {
+    model: BlogCategory,
+    project: {
+      title: { $ifNull: ["$name", "Untitled category"] },
+      description: { $literal: "Blog category" },
+    },
+  },
+  techCategories: {
+    model: TechCategory,
+    project: {
+      title: { $ifNull: ["$name", "Untitled category"] },
+      description: { $literal: "Technology category" },
+    },
+  },
+  recentWorkCategories: {
+    model: RecentWorkCategory,
+    project: {
+      title: { $ifNull: ["$name", "Untitled category"] },
+      description: { $literal: "Recent work category" },
+    },
+  },
+};
 
 const startOfUtcMonth = (date, offset = 0) =>
   new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + offset, 1));
@@ -79,6 +170,14 @@ const getMonthlyAnalytics = async (model, comparison) => {
 
 const getDashboardAnalytics = async (req, res) => {
   try {
+    const recentWorkPage = Math.max(
+      1,
+      Number.parseInt(req.query.recentWorkPage, 10) || 1,
+    );
+    const recentWorkPageSize = Math.min(
+      20,
+      Math.max(1, Number.parseInt(req.query.recentWorkPageSize, 10) || 6),
+    );
     const now = new Date();
     const currentStart = startOfUtcMonth(now);
     const previousStart = startOfUtcMonth(now, -1);
@@ -148,9 +247,32 @@ const getDashboardAnalytics = async (req, res) => {
           .sort({ createdAt: -1 })
           .limit(10)
           .lean(),
+        RecentWork.aggregate([
+          {
+            $facet: {
+              items: [
+                { $sort: { createdAt: -1, _id: -1 } },
+                { $skip: (recentWorkPage - 1) * recentWorkPageSize },
+                { $limit: recentWorkPageSize },
+                {
+                  $project: {
+                    title: 1,
+                    description: 1,
+                    link: 1,
+                    images: 1,
+                    createdAt: 1,
+                  },
+                },
+              ],
+              total: [{ $count: "count" }],
+            },
+          },
+        ]),
       ]),
     ]);
 
+    const recentWorkResult = recentRecords[5][0] || { items: [], total: [] };
+    const recentWorkTotal = recentWorkResult.total[0]?.count || 0;
     const activityItems = [
       ...recentRecords[0].map((item) => ({
         id: `contact-${item._id}`,
@@ -213,6 +335,16 @@ const getDashboardAnalytics = async (req, res) => {
       data: {
         metrics: metricData,
         recentActivity: activityItems,
+        recentWorkItems: recentWorkResult.items,
+        recentWorkPagination: {
+          page: recentWorkPage,
+          pageSize: recentWorkPageSize,
+          total: recentWorkTotal,
+          totalPages: Math.max(
+            1,
+            Math.ceil(recentWorkTotal / recentWorkPageSize),
+          ),
+        },
         comparison: {
           currentMonth: currentStart.toISOString(),
           previousMonth: previousStart.toISOString(),
@@ -230,4 +362,74 @@ const getDashboardAnalytics = async (req, res) => {
   }
 };
 
-module.exports = { getDashboardAnalytics };
+const getMetricRecords = async (req, res) => {
+  const { metricKey } = req.params;
+  const config = metricRecordConfig[metricKey];
+  if (!config) {
+    return res.status(404).json({
+      success: false,
+      message: "Dashboard metric not found.",
+    });
+  }
+
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const pageSize = Math.min(
+    20,
+    Math.max(1, Number.parseInt(req.query.pageSize, 10) || 10),
+  );
+
+  try {
+    const [result = { items: [], total: [] }] = await config.model.aggregate([
+      {
+        $facet: {
+          items: [
+            { $sort: { createdAt: -1, _id: -1 } },
+            { $skip: (page - 1) * pageSize },
+            { $limit: pageSize },
+            ...(config.categoryCollection
+              ? [
+                  {
+                    $lookup: {
+                      from: config.categoryCollection,
+                      localField: "category",
+                      foreignField: "_id",
+                      as: "dashboardCategory",
+                    },
+                  },
+                ]
+              : []),
+            {
+              $project: {
+                ...config.project,
+                createdAt: 1,
+              },
+            },
+          ],
+          total: [{ $count: "count" }],
+        },
+      },
+    ]);
+
+    const total = result.total[0]?.count || 0;
+    return res.status(200).json({
+      success: true,
+      data: {
+        items: result.items,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching dashboard metric records:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load records for this dashboard metric.",
+    });
+  }
+};
+
+module.exports = { getDashboardAnalytics, getMetricRecords };

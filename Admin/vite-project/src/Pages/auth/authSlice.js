@@ -1,33 +1,42 @@
 // src/features/auth/authSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-import { toast } from "react-toastify";
 
-// Thunk for login
-export const loginUser = createAsyncThunk(
-  "auth/login",
-  async (credentials, { rejectWithValue }) => {
+const getStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("authUser") || "null");
+  } catch {
+    return null;
+  }
+};
+
+export const verifyLoginOtp = createAsyncThunk(
+  "auth/verifyLoginOtp",
+  async ({ challengeId, otp }, { rejectWithValue }) => {
     try {
       const response = await axios.post(
-        "https://api.aiknotsit.com/api/auth/login",
-        credentials,
+        `${import.meta.env.VITE_API_URL || "https://api.aiknotsit.com"}/api/auth/login/verify-otp`,
+        { challengeId, otp },
         {
           headers: { "Content-Type": "application/json" },
         },
       );
-      return response.data; // { token, user?, message? }
+      return response.data;
     } catch (err) {
-      const message =
-        err.response?.data?.message ||
-        err.message ||
-        "Login failed. Please try again.";
-      return rejectWithValue(message);
+      return rejectWithValue({
+        message:
+          err.response?.data?.message ||
+          err.message ||
+          "Unable to verify the sign-in code. Please try again.",
+        code: err.response?.data?.code,
+      });
     }
   },
 );
 
 const initialState = {
   token: localStorage.getItem("token") || null,
+  user: getStoredUser(),
   isLoading: false,
   error: null,
   isAuthenticated: !!localStorage.getItem("token"),
@@ -39,7 +48,9 @@ const authSlice = createSlice({
   reducers: {
     logout: (state) => {
       localStorage.removeItem("token");
+      localStorage.removeItem("authUser");
       state.token = null;
+      state.user = null;
       state.isAuthenticated = false;
       state.error = null;
     },
@@ -47,19 +58,21 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(loginUser.pending, (state) => {
+      .addCase(verifyLoginOtp.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(loginUser.fulfilled, (state, action) => {
+      .addCase(verifyLoginOtp.fulfilled, (state, action) => {
         state.isLoading = false;
         state.token = action.payload.token;
+        state.user = action.payload.user;
         state.isAuthenticated = true;
         localStorage.setItem("token", action.payload.token);
+        localStorage.setItem("authUser", JSON.stringify(action.payload.user));
       })
-      .addCase(loginUser.rejected, (state, action) => {
+      .addCase(verifyLoginOtp.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload?.message || "OTP verification failed.";
       });
   },
 });
