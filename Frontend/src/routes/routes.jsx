@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router-dom";
 
 // Layout
 import MainLayout from "../Component/Layout"; // Your existing Layout
+import Canonical from "../Component/common/Canonical";
 
 // Pages / Components
 import Home from "../Component/Home";
@@ -77,7 +78,12 @@ const lazyElement = (Component) => (
 export const router = createBrowserRouter([
   {
     path: "/landingpage",
-    element: lazyElement(Landingpage),
+    element: (
+      <>
+        <Canonical />
+        {lazyElement(Landingpage)}
+      </>
+    ),
   },
   {
     path: "/",

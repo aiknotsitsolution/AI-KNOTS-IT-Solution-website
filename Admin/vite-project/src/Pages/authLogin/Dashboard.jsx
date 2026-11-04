@@ -1,565 +1,627 @@
-import {
-  AlertCircle,
-  ArrowUpRight,
-  ArrowDownRight,
-  MessageSquare,
-  Cpu,
-  Package,
-  BookOpen,
-} from "lucide-react";
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
-  LineChart,
+  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
+  BookOpen,
+  BriefcaseBusiness,
+  Cpu,
+  FolderKanban,
+  Layers3,
+  Mail,
+  MessageSquare,
+  Newspaper,
+  RefreshCw,
+} from "lucide-react";
+import {
+  CartesianGrid,
+  Legend,
   Line,
-  BarChart,
-  Bar,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
+const METRIC_COLORS = {
+  contacts: "#8b5cf6",
+  queries: "#6366f1",
+  blogPosts: "#10b981",
+  techNews: "#f59e0b",
+  recentWorks: "#ec4899",
+  blogCategories: "#14b8a6",
+  techCategories: "#f97316",
+  recentWorkCategories: "#64748b",
+};
+const METRIC_ICONS = {
+  contacts: Mail,
+  queries: MessageSquare,
+  blogPosts: BookOpen,
+  techNews: Cpu,
+  recentWorks: BriefcaseBusiness,
+  blogCategories: Layers3,
+  techCategories: Newspaper,
+  recentWorkCategories: FolderKanban,
+};
+const EMPTY_DATA = {
+  metrics: [],
+  recentActivity: [],
+  comparison: null,
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+};
+
+const getMonthName = (value, fallback) =>
+  value
+    ? new Date(value).toLocaleString(undefined, {
+        month: "long",
+        timeZone: "UTC",
+      })
+    : fallback;
+
+const formatChange = (current, previous) => {
+  if (previous === 0) return current > 0 ? "New this month" : "No change";
+  const change = ((current - previous) / previous) * 100;
+  return `${Math.abs(change).toFixed(0)}% ${
+    change > 0 ? "up" : change < 0 ? "down" : "unchanged"
+  }`;
+};
+
 const Dashboard = () => {
-  const [dashboardData, setDashboardData] = useState({
-    totalUsers: 0,
-    totalQueries: 0,
-    totalContacts: 0,
-    totalTechProducts: 0,
-    totalTechCategories: 0,
-    totalBlogs: 0,
-    loading: true,
-  });
-
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [chartData, setChartData] = useState([]);
+  const [data, setData] = useState(EMPTY_DATA);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(6);
 
-  // Fetch all data
   useEffect(() => {
-    const fetchAllData = async () => {
+    const controller = new AbortController();
+
+    const loadDashboard = async () => {
+      setLoading(true);
+      setError("");
+
       try {
-        const [
-          usersRes,
-          queriesRes,
-          contactsRes,
-          techProductsRes,
-          techCategoriesRes,
-          blogsRes,
-        ] = await Promise.all([
-          axios
-            .get("https://api.aiknotsit.com/api/users")
-            .catch(() => ({ data: null })),
-          // ✅ FIXED: was /query → now /api/query
-          axios
-            .get("https://api.aiknotsit.com/api/query")
-            .catch(() => ({ data: null })),
-          axios
-            .get("https://api.aiknotsit.com/api/contact")
-            .catch(() => ({ data: null })),
-          axios
-            .get("https://api.aiknotsit.com/api/technology/product")
-            .catch(() => ({ data: null })),
-          axios
-            .get("https://api.aiknotsit.com/api/technology/category")
-            .catch(() => ({ data: null })),
-          axios
-            .get("https://api.aiknotsit.com/api/product/alladminproducts")
-            .catch(() => ({ data: null })), // Used as blogs
-        ]);
-
-        // Safer extraction
-        const users = usersRes?.data?.data || usersRes?.data || [];
-        const queries = queriesRes?.data?.data || [];
-        const contacts = contactsRes?.data?.data || [];
-        const techProducts = techProductsRes?.data?.data || [];
-        const techCategories = techCategoriesRes?.data?.data || [];
-        const blogs = blogsRes?.data?.data || [];
-
-        // Chart Data Processing
-        const queryByDate = {};
-        const contactByDate = {};
-
-        queries.forEach((query) => {
-          if (!query.createdAt) return;
-          const date = new Date(query.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          });
-          queryByDate[date] = (queryByDate[date] || 0) + 1;
+        const response = await axios.get(`${API_URL}/api/dashboard/analytics`, {
+          signal: controller.signal,
         });
+        const payload = response.data?.data;
 
-        contacts.forEach((contact) => {
-          if (!contact.createdAt) return;
-          const date = new Date(contact.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          });
-          contactByDate[date] = (contactByDate[date] || 0) + 1;
-        });
+        if (
+          response.data?.success !== true ||
+          !Array.isArray(payload?.metrics) ||
+          payload.metrics.some((metric) => !Array.isArray(metric.daily)) ||
+          !Array.isArray(payload?.recentActivity)
+        ) {
+          throw new Error("Dashboard analytics response is incomplete.");
+        }
 
-        const allDates = [
-          ...new Set([
-            ...Object.keys(queryByDate),
-            ...Object.keys(contactByDate),
-          ]),
-        ].sort((a, b) => new Date(a) - new Date(b)); // chronological order
-
-        const chartDataProcessed = allDates.map((date) => ({
-          date,
-          Queries: queryByDate[date] || 0,
-          Contacts: contactByDate[date] || 0,
-        }));
-
-        setChartData(chartDataProcessed);
-
-        // Set Dashboard Stats
-        setDashboardData({
-          totalUsers: Array.isArray(users) ? users.length : 0,
-          totalQueries: queries.length,
-          totalContacts: contacts.length,
-          totalTechProducts: techProducts.length,
-          totalTechCategories: techCategories.length,
-          totalBlogs: blogs.length,
-          loading: false,
-        });
-
-        // Recent Activity (Queries + Blogs)
-        const recentQueries = queries.map((item) => ({
-          id: item._id || Math.random().toString(36),
-          type: "query",
-          user: item.name || "Anonymous",
-          action: item.category || "General Query",
-          message: item.message || "",
-          email: item.email || "",
-          phone: item.phone || "",
-          time: item.createdAt,
-          icon: MessageSquare,
-        }));
-
-        // ✅ FIXED: blogs use "name" (not "title") from the products API
-        const recentBlogs = blogs.map((blog) => ({
-          id: blog._id || Math.random().toString(36),
-          type: "blog",
-          user: blog.author || "Admin",
-          action: "Published Blog",
-          message: blog.name || blog.title || "Untitled Blog",
-          time: blog.createdAt || blog.updatedAt,
-          icon: BookOpen,
-        }));
-
-        const combined = [...recentQueries, ...recentBlogs].sort(
-          (a, b) => new Date(b.time) - new Date(a.time),
+        setData(payload);
+      } catch (requestError) {
+        if (requestError.code === "ERR_CANCELED") return;
+        console.error("Failed to load dashboard analytics:", requestError);
+        setError(
+          requestError.response?.data?.message ||
+            requestError.message ||
+            "Unable to load dashboard data.",
         );
-
-        setRecentActivity(combined);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        setDashboardData((prev) => ({ ...prev, loading: false }));
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
-    fetchAllData();
-  }, []);
+    loadDashboard();
+    return () => controller.abort();
+  }, [refreshKey]);
 
-  // Stats Cards
-  const stats = [
-    {
-      title: "Contact Messages",
-      value: dashboardData.loading ? "..." : dashboardData.totalContacts,
-      change: "+23%",
-      trend: "up",
-      icon: AlertCircle,
-      color: "bg-purple-500",
-    },
-    {
-      title: "Tech Products",
-      value: dashboardData.loading ? "..." : dashboardData.totalTechProducts,
-      change: "+5%",
-      trend: "up",
-      icon: Package,
-      color: "bg-orange-500",
-    },
-    {
-      title: "Tech Categories",
-      value: dashboardData.loading ? "..." : dashboardData.totalTechCategories,
-      change: "0%",
-      trend: "up",
-      icon: Cpu,
-      color: "bg-red-500",
-    },
-    {
-      title: "Total Blogs",
-      value: dashboardData.loading ? "..." : dashboardData.totalBlogs,
-      change: "+12%",
-      trend: "up",
-      icon: BookOpen,
-      color: "bg-emerald-500",
-    },
-  ];
-
-  const pieData = [
-    { name: "Queries", value: dashboardData.totalQueries, color: "#10b981" },
-    { name: "Contacts", value: dashboardData.totalContacts, color: "#a855f7" },
-  ];
-
-  // Pagination
-  const totalRecent = recentActivity.length;
-  const totalPages = Math.max(1, Math.ceil(totalRecent / itemsPerPage));
-  const safePage = Math.min(Math.max(1, currentPage), totalPages);
-  const displayedRecent = recentActivity.slice(
+  const totalPages = Math.max(
+    1,
+    Math.ceil(data.recentActivity.length / itemsPerPage),
+  );
+  const safePage = Math.min(currentPage, totalPages);
+  const displayedActivity = data.recentActivity.slice(
     (safePage - 1) * itemsPerPage,
     safePage * itemsPerPage,
   );
+  const recentWorks = data.recentActivity
+    .filter((item) => item.type === "recentWork")
+    .slice(0, 4);
+  const currentMonthChartData = useMemo(() => {
+    const days = new Map();
+    data.metrics.forEach((metric) => {
+      metric.daily.forEach(({ day }) => {
+        if (!days.has(day)) days.set(day, { day });
+      });
+    });
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [recentActivity, itemsPerPage]);
+    data.metrics.forEach((metric) => {
+      metric.daily.forEach(({ day, count }) => {
+        days.get(day)[metric.key] = count;
+      });
+    });
+
+    return [...days.values()].sort((first, second) => first.day - second.day);
+  }, [data.metrics]);
+  const currentMonthName = getMonthName(
+    data.comparison?.currentMonth,
+    new Date().toLocaleString(undefined, {
+      month: "long",
+      timeZone: "UTC",
+    }),
+  );
+  const previousMonthName = getMonthName(
+    data.comparison?.previousMonth,
+    "last month",
+  );
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Dashboard
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Welcome back! Here's what's happening today.
-          </p>
-        </div>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 text-sm font-medium">
-          <ArrowUpRight size={16} />
-          Export Report
-        </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={index}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition"
+    <main className="mx-auto max-w-[1500px] space-y-6 pb-8">
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 px-6 py-7 text-white shadow-xl shadow-indigo-950/10 sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full border-[36px] border-white/[0.04]" />
+        <div className="pointer-events-none absolute bottom-[-90px] right-48 h-52 w-52 rounded-full bg-indigo-400/10 blur-3xl" />
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold tracking-wide text-amber-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+              ADMIN OVERVIEW
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Dashboard
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
+              Track your content, enquiries, and recent work in one place.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <p className="hidden text-right text-xs leading-5 text-slate-400 sm:block">
+              Monthly comparison
+              <br />
+              <span className="font-medium text-slate-200">
+                Same days vs {previousMonthName}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setRefreshKey((key) => key + 1)}
+              disabled={loading}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <div className="flex items-center justify-between">
-                <div className={`p-3 rounded-lg ${stat.color} bg-opacity-10`}>
-                  <Icon
-                    className={stat.color.replace("bg-", "text-")}
-                    size={24}
-                  />
+              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {error && (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => setRefreshKey((key) => key + 1)}
+            className="self-start font-semibold underline underline-offset-2 sm:self-auto"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      <section
+        aria-label="Dashboard totals"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      >
+        {data.metrics.map((metric) => {
+          const Icon = METRIC_ICONS[metric.key] || Activity;
+          const color = METRIC_COLORS[metric.key] || "#6366f1";
+          const difference = metric.currentMonth - metric.previousMonth;
+          const isUp = difference > 0;
+          const isDown = difference < 0;
+
+          return (
+            <article
+              key={metric.key}
+              className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/60"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    {metric.label}
+                  </p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                    {loading ? (
+                      <span className="inline-block h-9 w-14 animate-pulse rounded-lg bg-slate-100" />
+                    ) : (
+                      metric.total.toLocaleString()
+                    )}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">Total records</p>
                 </div>
                 <span
-                  className={`text-sm font-medium flex items-center gap-1 ${
-                    stat.trend === "up" ? "text-emerald-600" : "text-red-600"
-                  }`}
+                  className="rounded-2xl p-3"
+                  style={{
+                    color,
+                    backgroundColor: `${color}14`,
+                  }}
                 >
-                  {stat.change}
-                  {stat.trend === "up" ? (
-                    <ArrowUpRight size={14} />
-                  ) : (
-                    <ArrowDownRight size={14} />
-                  )}
+                  <Icon size={20} />
                 </span>
               </div>
-              <div className="mt-5">
-                <p className="text-sm text-gray-600">{stat.title}</p>
-                <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
-                  {stat.value}
-                </p>
+              <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3">
+                <div>
+                  <p className="text-xs text-slate-400">{currentMonthName}</p>
+                  <p className="mt-0.5 text-sm font-semibold text-slate-700">
+                    {loading ? "—" : metric.currentMonth.toLocaleString()}
+                    <span className="ml-1.5 text-xs font-normal text-slate-400">
+                      vs {loading ? "—" : metric.previousMonth.toLocaleString()}
+                    </span>
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex items-center gap-0.5 rounded-full px-2 py-1 text-[11px] font-semibold ${
+                    isUp
+                      ? "bg-emerald-50 text-emerald-700"
+                      : isDown
+                        ? "bg-rose-50 text-rose-700"
+                        : "bg-slate-100 text-slate-600"
+                  }`}
+                  title={`${currentMonthName}: ${metric.currentMonth}; ${previousMonthName} same period: ${metric.previousMonth}`}
+                >
+                  {isUp ? (
+                    <ArrowUpRight size={13} />
+                  ) : isDown ? (
+                    <ArrowDownRight size={13} />
+                  ) : null}
+                  {loading
+                    ? "—"
+                    : formatChange(metric.currentMonth, metric.previousMonth)}
+                </span>
               </div>
-            </div>
+            </article>
           );
         })}
-      </div>
+      </section>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Line Chart */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">
-            Queries & Contacts Timeline
-          </h2>
-          {dashboardData.loading ? (
-            <div className="h-80 flex items-center justify-center text-gray-500">
-              Loading chart...
-            </div>
-          ) : chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#6b7280"
-                  style={{ fontSize: "12px" }}
-                />
-                <YAxis stroke="#6b7280" style={{ fontSize: "12px" }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                  }}
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="Queries"
-                  stroke="#10b981"
-                  strokeWidth={3}
-                  dot={{ fill: "#10b981", r: 5 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="Contacts"
-                  stroke="#a855f7"
-                  strokeWidth={3}
-                  dot={{ fill: "#a855f7", r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-80 flex items-center justify-center text-gray-500">
-              No data available
-            </div>
+      <section aria-label="Current-month metrics chart">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">
+              All metrics · {currentMonthName}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Daily trend for every dashboard metric in one chart.
+            </p>
+          </div>
+          {data.comparison?.throughDay && (
+            <span className="w-fit rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700">
+              Through day {data.comparison.throughDay}
+            </span>
           )}
         </div>
-
-        {/* Pie Chart */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">
-            Queries vs Contacts Distribution
-          </h2>
-          {dashboardData.loading ? (
-            <div className="h-80 flex items-center justify-center text-gray-500">
-              Loading chart...
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={320}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) =>
-                    `${name}: ${(percent * 100).toFixed(0)}%`
-                  }
-                  outerRadius={100}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-          <div className="flex justify-center gap-6 mt-4">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-emerald-500 rounded"></div>
-              <span className="text-sm text-gray-700">
-                Queries ({dashboardData.totalQueries})
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-purple-500 rounded"></div>
-              <span className="text-sm text-gray-700">
-                Contacts ({dashboardData.totalContacts})
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bar Chart */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">
-          Queries & Contacts Comparison
-        </h2>
-        {dashboardData.loading ? (
-          <div className="h-80 flex items-center justify-center text-gray-500">
-            Loading chart...
-          </div>
-        ) : chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="date"
-                stroke="#6b7280"
-                style={{ fontSize: "12px" }}
-              />
-              <YAxis stroke="#6b7280" style={{ fontSize: "12px" }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                }}
-              />
-              <Legend />
-              <Bar dataKey="Queries" fill="#10b981" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="Contacts" fill="#a855f7" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="h-80 flex items-center justify-center text-gray-500">
-            No data available
-          </div>
-        )}
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">
-          Recent Activity
-        </h2>
-        <div className="space-y-4">
-          {dashboardData.loading ? (
-            <div className="text-center py-8 text-gray-500">Loading...</div>
-          ) : recentActivity.length > 0 ? (
-            displayedRecent.map((item) => {
-              const Icon = item.icon;
+        <article className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+          <div className="mb-3 flex flex-wrap gap-3">
+            {data.metrics.map((metric) => {
+              const Icon = METRIC_ICONS[metric.key] || Activity;
+              const color = METRIC_COLORS[metric.key] || "#6366f1";
               return (
-                <div
-                  key={item.id}
-                  className="flex items-start justify-between py-2 border-b border-gray-100 last:border-0"
+                <span
+                  key={metric.key}
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600"
                 >
-                  <div className="flex items-start gap-3 flex-1">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <Icon size={16} className="text-blue-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-sm">
-                        {item.user}
+                  <Icon size={14} style={{ color }} />
+                  {metric.label}
+                </span>
+              );
+            })}
+          </div>
+          <div className="h-[380px]">
+            {loading ? (
+              <div className="flex h-full animate-pulse items-center justify-center rounded-xl bg-slate-50 text-sm text-slate-400">
+                Loading current-month trends…
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={currentMonthChartData}
+                  margin={{ top: 8, right: 12, left: -12, bottom: 8 }}
+                >
+                  <CartesianGrid stroke="#eef2f7" vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 11 }}
+                    tickFormatter={(day) => `${day}`}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 11 }}
+                  />
+                  <Tooltip
+                    labelFormatter={(day) => `${currentMonthName} ${day}`}
+                    formatter={(value, name) => [
+                      value,
+                      data.metrics.find((metric) => metric.key === name)
+                        ?.label || name,
+                    ]}
+                    contentStyle={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 12,
+                      boxShadow: "0 8px 24px rgba(15, 23, 42, .08)",
+                    }}
+                  />
+                  <Legend
+                    verticalAlign="bottom"
+                    height={46}
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
+                    formatter={(key) =>
+                      data.metrics.find((metric) => metric.key === key)
+                        ?.label || key
+                    }
+                  />
+                  {data.metrics.map((metric) => (
+                    <Line
+                      key={metric.key}
+                      type="monotone"
+                      dataKey={metric.key}
+                      name={metric.key}
+                      stroke={METRIC_COLORS[metric.key] || "#6366f1"}
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 5, strokeWidth: 0 }}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </article>
+      </section>
+
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-5">
+        <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm xl:col-span-3">
+          <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">
+                Recent activity
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Latest enquiries and content updates.
+              </p>
+            </div>
+            <span className="rounded-xl bg-slate-100 p-2.5 text-slate-500">
+              <Activity size={18} />
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="space-y-4 p-6" aria-label="Loading recent activity">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="flex animate-pulse gap-3">
+                  <span className="h-10 w-10 rounded-xl bg-slate-100" />
+                  <span className="h-10 flex-1 rounded-xl bg-slate-50" />
+                </div>
+              ))}
+            </div>
+          ) : displayedActivity.length ? (
+            <div className="divide-y divide-slate-100">
+              {displayedActivity.map((item) => {
+                const color =
+                  METRIC_COLORS[
+                    item.type === "contact"
+                      ? "contacts"
+                      : item.type === "query"
+                        ? "queries"
+                        : item.type === "blog"
+                          ? "blogPosts"
+                          : item.type === "tech"
+                            ? "techNews"
+                            : "recentWorks"
+                  ];
+                const Icon =
+                  item.type === "contact"
+                    ? Mail
+                    : item.type === "query"
+                      ? MessageSquare
+                      : item.type === "blog"
+                        ? BookOpen
+                        : item.type === "tech"
+                          ? Cpu
+                          : BriefcaseBusiness;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-slate-50/80 sm:px-6"
+                  >
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                      style={{
+                        color,
+                        backgroundColor: `${color}14`,
+                      }}
+                    >
+                      <Icon size={18} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-800">
+                        {item.title}
                       </p>
-                      <p className="text-xs text-blue-600 font-medium">
-                        {item.action}
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {item.detail}
                       </p>
-                      {item.email && (
-                        <p className="text-[11px] text-gray-500 mt-0.5">
-                          📧 {item.email}
-                        </p>
-                      )}
-                      {item.message && (
-                        <p className="text-[12px] text-gray-600 mt-1 line-clamp-2">
-                          {item.message}
-                        </p>
-                      )}
                     </div>
-                  </div>
-                  <div className="text-right ml-4">
-                    <p className="text-xs text-gray-500 whitespace-nowrap">
-                      {item.time
-                        ? new Date(item.time).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })
-                        : "—"}
+                    <p className="shrink-0 text-right text-[11px] font-medium text-slate-400">
+                      {formatDate(item.createdAt)}
                     </p>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              No recent activity
+            <div className="px-6 py-14 text-center">
+              <Activity className="mx-auto mb-3 text-slate-300" size={30} />
+              <p className="text-sm font-semibold text-slate-600">
+                No recent activity
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                New enquiries and content updates will show up here.
+              </p>
             </div>
           )}
-        </div>
 
-        {/* Pagination */}
-        {recentActivity.length > 0 && (
-          <div className="mt-4 flex items-center justify-between gap-4">
-            <div className="text-sm text-gray-600">
-              Showing {Math.min((safePage - 1) * itemsPerPage + 1, totalRecent)}{" "}
-              - {Math.min(safePage * itemsPerPage, totalRecent)} of{" "}
-              {totalRecent}
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className="border rounded px-2 py-1 text-sm"
-              >
-                <option value={5}>5 / page</option>
-                <option value={10}>10 / page</option>
-                <option value={15}>15 / page</option>
-              </select>
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={safePage === 1}
-                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-sm"
-              >
-                Prev
-              </button>
-              <div className="text-sm text-gray-700 px-2">
-                {safePage} / {totalPages}
+          {!loading && data.recentActivity.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <p className="text-xs text-slate-500">
+                Showing{" "}
+                <span className="font-semibold text-slate-700">
+                  {Math.min(
+                    (safePage - 1) * itemsPerPage + 1,
+                    data.recentActivity.length,
+                  )}
+                  –
+                  {Math.min(
+                    safePage * itemsPerPage,
+                    data.recentActivity.length,
+                  )}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold text-slate-700">
+                  {data.recentActivity.length}
+                </span>
+              </p>
+              <div className="flex items-center gap-2">
+                <select
+                  value={itemsPerPage}
+                  onChange={(event) => {
+                    setItemsPerPage(Number(event.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600 outline-none focus:border-indigo-400"
+                  aria-label="Activity items per page"
+                >
+                  <option value={5}>5 per page</option>
+                  <option value={6}>6 per page</option>
+                  <option value={10}>10 per page</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((page) => Math.max(1, page - 1))
+                  }
+                  disabled={safePage === 1}
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <span className="min-w-10 text-center text-xs font-semibold text-slate-600">
+                  {safePage}/{totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((page) => Math.min(totalPages, page + 1))
+                  }
+                  disabled={safePage === totalPages}
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
               </div>
-              <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={safePage === totalPages}
-                className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-sm"
-              >
-                Next
-              </button>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </article>
 
-      {/* System Overview */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 text-white">
-        <h2 className="text-xl font-bold mb-4">System Overview</h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-            <p className="text-sm opacity-90">Total Queries</p>
-            <p className="text-2xl font-bold mt-1">
-              {dashboardData.loading ? "..." : dashboardData.totalQueries}
-            </p>
+        <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm xl:col-span-2">
+          <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Recent work</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Latest projects added to your portfolio.
+              </p>
+            </div>
+            <span className="rounded-xl bg-pink-50 p-2.5 text-pink-600">
+              <BriefcaseBusiness size={18} />
+            </span>
           </div>
-          <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-            <p className="text-sm opacity-90">Contacts</p>
-            <p className="text-2xl font-bold mt-1">
-              {dashboardData.loading ? "..." : dashboardData.totalContacts}
-            </p>
-          </div>
-          <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-            <p className="text-sm opacity-90">Tech Products</p>
-            <p className="text-2xl font-bold mt-1">
-              {dashboardData.loading ? "..." : dashboardData.totalTechProducts}
-            </p>
-          </div>
-          <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-            <p className="text-sm opacity-90">Categories</p>
-            <p className="text-2xl font-bold mt-1">
-              {dashboardData.loading
-                ? "..."
-                : dashboardData.totalTechCategories}
-            </p>
-          </div>
-          <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-            <p className="text-sm opacity-90">Total Blogs</p>
-            <p className="text-2xl font-bold mt-1">
-              {dashboardData.loading ? "..." : dashboardData.totalBlogs}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+
+          {loading ? (
+            <div className="space-y-4 p-6" aria-label="Loading recent work">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="flex animate-pulse gap-3">
+                  <span className="h-10 w-10 rounded-xl bg-slate-100" />
+                  <span className="h-10 flex-1 rounded-xl bg-slate-50" />
+                </div>
+              ))}
+            </div>
+          ) : recentWorks.length ? (
+            <div className="divide-y divide-slate-100">
+              {recentWorks.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 px-5 py-4 sm:px-6"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-xs font-bold text-pink-700">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-800">
+                      {item.title}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Added to Recent Work
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-right text-[11px] text-slate-400">
+                    {formatDate(item.createdAt)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="px-6 py-14 text-center">
+              <BriefcaseBusiness
+                className="mx-auto mb-3 text-slate-300"
+                size={30}
+              />
+              <p className="text-sm font-semibold text-slate-600">
+                No recent work yet
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                New portfolio projects will appear here.
+              </p>
+            </div>
+          )}
+        </article>
+      </section>
+
+      <footer className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-400">
+        <span>Trends include all tracked content and enquiry categories.</span>
+        <span>
+          Compared through day {data.comparison?.throughDay || "—"} of the month
+        </span>
+      </footer>
+    </main>
   );
 };
 

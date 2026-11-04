@@ -74,5 +74,7 @@ const productSchema = new mongoose.Schema(
 
 // Index for faster slug search
 productSchema.index({ slug: 1 });
+productSchema.index({ createdAt: -1, _id: -1 });
+productSchema.index({ category: 1, createdAt: -1, _id: -1 });
 
 module.exports = mongoose.model("Product", productSchema);

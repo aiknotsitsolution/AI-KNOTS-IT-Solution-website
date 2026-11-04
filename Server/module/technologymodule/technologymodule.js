@@ -279,5 +279,6 @@ techSchema.pre("save", async function () {
 // Indexes for better performance
 techSchema.index({ slug: 1 });
 techSchema.index({ category: 1, createdAt: -1 });
+techSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Technology", techSchema);

@@ -15,6 +15,9 @@ const {
   getAdminProducts,
 } = require("../../controller/Homecontroller/homecontroller");
 const {
+  getPaginatedBlogPosts,
+} = require("../../controller/Homecontroller/blogPaginationController");
+const {
   getAdminProductComments,
   deleteAdminComment,
 } = require("../../controller/Homecontroller/adminCommentController");
@@ -22,7 +25,16 @@ const {
 // ==================== MAIN BLOG ROUTES ====================
 
 router.post("/create", createContent); // Create new post
-router.get("/product", getHomeData); // Get all posts (used in frontend)
+router.get("/product", (req, res, next) => {
+  if (
+    req.query.page !== undefined ||
+    req.query.limit !== undefined
+  ) {
+    return getPaginatedBlogPosts(req, res, next);
+  }
+
+  return getHomeData(req, res, next);
+}); // Get all posts or a paginated subset
 router.get("/product/alladminproducts", getAdminProducts); // Get all products for admin (includes unpublished/drafts)
 router.get("/product/:id/admin-comments", getAdminProductComments); // Get admin comment view for a product
 router.delete(

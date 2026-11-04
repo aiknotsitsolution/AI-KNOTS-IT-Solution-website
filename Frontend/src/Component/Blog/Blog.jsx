@@ -30,6 +30,7 @@ const Blog = () =>
     categories,
     posts: blogPosts,
     activeCategory,
+    pagination,
     status,
     error,
   } = useSelector((state) => state.blog);
@@ -85,9 +86,14 @@ const Blog = () =>
 
   const refreshBlogPosts = useCallback(() =>
   {
-    dispatch(fetchCategories());
-    dispatch(fetchBlogPosts());
-  }, [dispatch]);
+    dispatch(
+      fetchBlogPosts({
+        page: currentPage,
+        limit: POSTS_PER_PAGE,
+        category: activeCategory,
+      }),
+    );
+  }, [dispatch, currentPage, activeCategory]);
 
   // Load saved data from localStorage
   useEffect(() =>
@@ -138,14 +144,13 @@ const Blog = () =>
 
   useEffect(() =>
 {
+  dispatch(fetchCategories());
+}, [dispatch]);
+
+useEffect(() =>
+{
   refreshBlogPosts();
 }, [refreshBlogPosts]);
-
-  useEffect(() =>
-  {
-    setCurrentPage(1);
-  }, [activeCategory]);
-
 
   useEffect(() =>
   {
@@ -153,10 +158,16 @@ const Blog = () =>
 
     if (shouldRefresh === "true")
     {
-      dispatch(fetchBlogPosts());
+      dispatch(
+        fetchBlogPosts({
+          page: currentPage,
+          limit: POSTS_PER_PAGE,
+          category: activeCategory,
+        }),
+      );
       localStorage.removeItem("blogCommentsUpdated");
     }
-  }, [dispatch]);
+  }, [dispatch, currentPage, activeCategory]);
 
   // Merge updated likes & comments
   // const getCommentCount = (post) =>
@@ -196,17 +207,11 @@ const getCommentCount = (post) => {
   }));
 
   const filteredPosts =
-    activeCategory === "All"
-      ? mergedPosts
-      : mergedPosts.filter((post) => post.category?.name === activeCategory);
+    mergedPosts;
 
-  const totalPosts = filteredPosts.length;
-  const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
-  const startIndex = (currentPage - 1) * POSTS_PER_PAGE;
-  const currentPosts = filteredPosts.slice(
-    startIndex,
-    startIndex + POSTS_PER_PAGE,
-  );
+  const totalPosts = pagination.total;
+  const totalPages = pagination.totalPages;
+  const currentPosts = filteredPosts;
 
   const goToPage = (page) =>
   {
@@ -628,7 +633,12 @@ const getCommentCount = (post) => {
               {categories.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => dispatch(setActiveCategory(cat))}
+                  onClick={() =>
+                  {
+                    if (activeCategory === cat) return;
+                    setCurrentPage(1);
+                    dispatch(setActiveCategory(cat));
+                  }}
                   className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all border ${activeCategory === cat
                     ? "bg-[#8B6B4A] text-white shadow-lg shadow-[#8B6B4A]/40"
                     : isDark
@@ -2895,9 +2905,6 @@ export default Blog;
 // };
 
 // export default Blog;
-
-
-
 
 
 

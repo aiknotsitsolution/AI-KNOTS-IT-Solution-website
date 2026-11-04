@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import
-{
+import {
   motion,
   useInView,
   useMotionValue,
@@ -18,15 +17,13 @@ import { HashLink } from "react-router-hash-link";
 
 const API_BASE_URL = "https://api.aiknotsit.com";
 
-function Counter({ value, duration = 2.5 })
-{
+function Counter({ value, duration = 2.5 }) {
   const count = useMotionValue(0);
   const rounded = useTransform(count, Math.round);
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
 
-  useEffect(() =>
-  {
+  useEffect(() => {
     if (!isInView) return;
     const target = Number(value) || 0;
     const controls = animate(count, target, { duration, ease: "easeOut" });
@@ -40,8 +37,7 @@ function Counter({ value, duration = 2.5 })
   );
 }
 
-export default function RecentWork()
-{
+export default function RecentWork() {
   const [isDark, setIsDark] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
@@ -79,10 +75,8 @@ export default function RecentWork()
   ];
 
   // Dark mode observer
-  useEffect(() =>
-  {
-    const observer = new MutationObserver(() =>
-    {
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains("dark"));
     });
     observer.observe(document.documentElement, {
@@ -93,22 +87,17 @@ export default function RecentWork()
   }, []);
 
   // Auto Slide Hero
-  useEffect(() =>
-  {
-    const interval = setInterval(() =>
-    {
+  useEffect(() => {
+    const interval = setInterval(() => {
       setCurrentHeroSlide((prev) => (prev + 1) % HERO_SLIDES.length);
     }, 5000);
     return () => clearInterval(interval);
   }, [HERO_SLIDES.length]);
 
   // Fetch Portfolio
-  useEffect(() =>
-  {
-    const fetchRecentWork = async () =>
-    {
-      try
-      {
+  useEffect(() => {
+    const fetchRecentWork = async () => {
+      try {
         setLoading(true);
         setError(null);
         const res = await fetch(`${API_BASE_URL}/recentwork`);
@@ -132,12 +121,10 @@ export default function RecentWork()
           ...new Set(formattedData.flatMap((item) => item.categories)),
         ];
         setAllCategories(cats);
-      } catch (err)
-      {
+      } catch (err) {
         console.error(err);
         setError("Failed to load projects. Please try again.");
-      } finally
-      {
+      } finally {
         setLoading(false);
       }
     };
@@ -145,8 +132,7 @@ export default function RecentWork()
     fetchRecentWork();
   }, []);
 
-  const filteredItems = useMemo(() =>
-  {
+  const filteredItems = useMemo(() => {
     if (activeFilter === "All") return portfolioItems;
     return portfolioItems.filter((item) =>
       item.categories.includes(activeFilter),
@@ -160,8 +146,7 @@ export default function RecentWork()
     { target: 50, suffix: "+", label: "Industries Served" },
   ];
 
-  if (loading)
-  {
+  if (loading) {
     return (
       <div
         className={`min-h-screen flex items-center justify-center ${isDark ? "bg-black" : "bg-gray-50"}`}
@@ -171,8 +156,7 @@ export default function RecentWork()
     );
   }
 
-  if (error)
-  {
+  if (error) {
     return (
       <div
         className={`min-h-screen flex items-center justify-center ${isDark ? "bg-black text-[#D2A679]" : "bg-gray-50 text-[#8B6B4A]"}`}
@@ -188,7 +172,6 @@ export default function RecentWork()
   return (
     <>
       <Helmet>
-
         <title>Our Recent Work | Atla Intelligent Knots</title>
         <meta
           name="description"
@@ -280,8 +263,9 @@ export default function RecentWork()
               OUR <span className="text-[#8B6B4A]">RECENT WORK</span>
             </h1>
             <p
-              className={`text-lg sm:text-xl md:text-2xl max-w-4xl mx-auto leading-relaxed ${isDark ? "text-gray-300" : "text-gray-600"
-                }`}
+              className={`text-lg sm:text-xl md:text-2xl max-w-4xl mx-auto leading-relaxed ${
+                isDark ? "text-gray-300" : "text-gray-600"
+              }`}
             >
               Crafting{" "}
               <HashLink
@@ -300,10 +284,7 @@ export default function RecentWork()
                 growth
               </HashLink>{" "}
               across{" "}
-              <Link
-                to="/service#Our-Services"
-                className={serviceLink}
-              >
+              <Link to="/service#Our-Services" className={serviceLink}>
                 industries
               </Link>
               .
@@ -316,12 +297,13 @@ export default function RecentWork()
               <button
                 key={cat}
                 onClick={() => setActiveFilter(cat)}
-                className={`px-6 py-3 rounded-full text-sm md:text-base font-semibold uppercase tracking-wider border transition-all duration-300 ${activeFilter === cat
-                  ? "bg-[#8B6B4A] border-[#8B6B4A] text-white shadow-lg shadow-[#8B6B4A]/40"
-                  : isDark
-                    ? "bg-white/5 border-gray-700 text-gray-200 hover:bg-[#3D2A1E] hover:border-[#8B6B4A]/60 hover:text-[#D9C5B5]"
-                    : "bg-white border-gray-300 text-gray-700 hover:bg-[#F5EDE4] hover:border-[#8B6B4A] hover:text-[#3D220E]"
-                  }`}
+                className={`px-6 py-3 rounded-full text-sm md:text-base font-semibold uppercase tracking-wider border transition-all duration-300 ${
+                  activeFilter === cat
+                    ? "bg-[#8B6B4A] border-[#8B6B4A] text-white shadow-lg shadow-[#8B6B4A]/40"
+                    : isDark
+                      ? "bg-white/5 border-gray-700 text-gray-200 hover:bg-[#3D2A1E] hover:border-[#8B6B4A]/60 hover:text-[#D9C5B5]"
+                      : "bg-white border-gray-300 text-gray-700 hover:bg-[#F5EDE4] hover:border-[#8B6B4A] hover:text-[#3D220E]"
+                }`}
               >
                 {cat}
               </button>

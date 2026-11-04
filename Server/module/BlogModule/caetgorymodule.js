@@ -8,4 +8,6 @@ const categorySchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+categorySchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("BlogCategory", categorySchema);

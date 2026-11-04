@@ -25,6 +25,7 @@ const jobapplyCategoryRoutes = require("./Routes/Jobroutes/jobcategoryRoute.js")
 const recentworkcategoryRoutes = require("./Routes/recentworkroute/recentworkrcategoryoutes.js");
 const jobapplicationRoutes = require("./Routes/Jobroutes/jobApplicationRoutes.js");
 const recentwork1Routes = require("./Routes/recentworkroute/recentworkroutes.js");
+const dashboardRoutes = require("./Routes/dashboardRoutes.js");
 dns.setServers(["8.8.8.8", "1.1.1.1", "0.0.0.0"]);
 
 const app = express();
@@ -72,6 +73,7 @@ app.use("/api/technology/product", technologyRoute);
 app.use("/tech", techRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/query", queryRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.use("/portfolio", portfolioRoutes);
 app.use("/category/portfolio", portfoliocategoryRoutes);

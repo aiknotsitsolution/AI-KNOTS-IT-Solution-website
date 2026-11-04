@@ -26,6 +26,8 @@ const TechNews = () => {
 
   const {
     items: newsItems,
+    categories: newsCategories,
+    pagination,
     selectedCategory,
     status,
     error,
@@ -35,10 +37,14 @@ const TechNews = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    if (status === "idle") {
-      dispatch(fetchTechNews());
-    }
-  }, [status, dispatch]);
+    dispatch(
+      fetchTechNews({
+        page: currentPage,
+        limit: NEWS_PER_PAGE,
+        category: selectedCategory,
+      }),
+    );
+  }, [currentPage, selectedCategory, dispatch]);
 
   // Scroll to top
   useEffect(() => {
@@ -54,26 +60,17 @@ const TechNews = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const categories = [
-    "All",
-    ...new Set(newsItems.map((item) => item.category)),
-  ];
-
-  const filteredNews =
-    selectedCategory === "All"
-      ? newsItems
-      : newsItems.filter((item) => item.category === selectedCategory);
-
-  const totalPages = Math.ceil(filteredNews.length / NEWS_PER_PAGE);
-  const startIndex = (currentPage - 1) * NEWS_PER_PAGE;
-  const currentNews = filteredNews.slice(
-    startIndex,
-    startIndex + NEWS_PER_PAGE,
+  const categories = ["All", ...newsCategories];
+  const totalPages = pagination.totalPages;
+  const firstVisiblePage = Math.max(
+    1,
+    Math.min(currentPage - 2, totalPages - 4),
   );
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedCategory]);
+  const pageNumbers = Array.from(
+    { length: Math.min(totalPages, 5) },
+    (_, index) => firstVisiblePage + index,
+  );
+  const currentNews = newsItems;
 
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -204,7 +201,11 @@ const TechNews = () => {
             {categories.map((category) => (
               <button
                 key={category}
-                onClick={() => dispatch(setSelectedCategory(category))}
+                onClick={() => {
+                  if (selectedCategory === category) return;
+                  setCurrentPage(1);
+                  dispatch(setSelectedCategory(category));
+                }}
                 className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                   selectedCategory === category
                     ? "bg-[#8B6B4A] text-white shadow-lg shadow-[#8B6B4A]/40"
@@ -312,10 +313,7 @@ const TechNews = () => {
                   Previous
                 </button>
 
-                {Array.from(
-                  { length: totalPages },
-                  (_, index) => index + 1,
-                ).map((page) => (
+                {pageNumbers.map((page) => (
                   <button
                     key={page}
                     onClick={() => goToPage(page)}
@@ -350,13 +348,13 @@ const TechNews = () => {
               </nav>
 
               <p className={`text-sm ${bodyClass}`}>
-                Page {currentPage} of {totalPages} - {filteredNews.length} news
+                Page {currentPage} of {totalPages} - {pagination.total} news
                 items
               </p>
             </div>
           )}
 
-          {filteredNews.length === 0 && (
+          {pagination.total === 0 && (
             <div className={`text-center text-lg mt-12 ${bodyClass}`}>
               No news found in this category.
             </div>

@@ -20,4 +20,7 @@ const techSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+techSchema.index({ createdAt: -1, _id: -1 });
+techSchema.index({ category: 1, createdAt: -1, _id: -1 });
+
 module.exports = mongoose.model("Tech", techSchema);

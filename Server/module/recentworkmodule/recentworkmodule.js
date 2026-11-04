@@ -21,4 +21,6 @@ const techSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+techSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("recentwork", techSchema);

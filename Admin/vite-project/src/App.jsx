@@ -1,6 +1,7 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./Pages/authLogin/Login";
+import ForgotPassword from "./Pages/authLogin/ForgotPassword";
 import Dashboard from "./Pages/authLogin/Dashboard";
 import Layout from "./Component/Layout";
 import ProtectedRoute from "./Component/ProtectedRoute";
@@ -31,6 +32,8 @@ function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ForgotPassword />} />
 
 
         {/* Protected routes - wrapped with Layout */}

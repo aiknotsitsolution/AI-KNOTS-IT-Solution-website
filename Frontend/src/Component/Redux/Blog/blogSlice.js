@@ -274,18 +274,35 @@ export const fetchCategories = createAsyncThunk(
   },
 );
 
-// Async thunk to fetch all blog posts
+// Fetch one page of blog posts
 export const fetchBlogPosts = createAsyncThunk(
   "blog/fetchBlogPosts",
-  async (_, { rejectWithValue }) => {
+  async (
+    { page = 1, limit = 6, category = "All" } = {},
+    { rejectWithValue },
+  ) => {
     try {
       const baseUrl =
         import.meta.env.VITE_API_URL || "https://api.aiknotsit.com";
-      const res = await fetch(`${baseUrl}/api/product`);
+      const params = new URLSearchParams({ page, limit });
+      if (category !== "All") params.set("category", category);
+
+      const res = await fetch(`${baseUrl}/api/product?${params}`);
       if (!res.ok) throw new Error("Failed to fetch posts");
       const data = await res.json();
       if (!data.success) throw new Error(data.message || "Failed");
-      return data.data || [];
+      if (
+        !Array.isArray(data.data) ||
+        !data.pagination ||
+        !Number.isInteger(data.pagination.page) ||
+        !Number.isInteger(data.pagination.limit) ||
+        !Number.isInteger(data.pagination.total) ||
+        !Number.isInteger(data.pagination.totalPages)
+      ) {
+        throw new Error("Unexpected paginated blog response");
+      }
+
+      return { posts: data.data, pagination: data.pagination };
     } catch (err) {
       return rejectWithValue(err.message || "Error fetching blog posts");
     }
@@ -427,6 +444,8 @@ const blogSlice = createSlice({
     categories: ["All"],
     posts: [],
     activeCategory: "All",
+    pagination: { page: 1, limit: 6, total: 0, totalPages: 0 },
+    currentPostsRequestId: null,
 
     status: "idle",
     error: null,
@@ -461,16 +480,24 @@ const blogSlice = createSlice({
       })
 
       // All Posts
-      .addCase(fetchBlogPosts.pending, (state) => {
+      .addCase(fetchBlogPosts.pending, (state, action) => {
         state.status = "loading";
+        state.currentPostsRequestId = action.meta.requestId;
       })
       .addCase(fetchBlogPosts.fulfilled, (state, action) => {
+        if (state.currentPostsRequestId !== action.meta.requestId) return;
+
         state.status = "succeeded";
-        state.posts = action.payload;
+        state.posts = action.payload.posts;
+        state.pagination = action.payload.pagination;
+        state.currentPostsRequestId = null;
       })
       .addCase(fetchBlogPosts.rejected, (state, action) => {
+        if (state.currentPostsRequestId !== action.meta.requestId) return;
+
         state.status = "failed";
         state.error = action.payload;
+        state.currentPostsRequestId = null;
       })
 
       // Single Post (Now supports Slug)

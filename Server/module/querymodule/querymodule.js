@@ -48,4 +48,6 @@ const querySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+querySchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("Query", querySchema);
