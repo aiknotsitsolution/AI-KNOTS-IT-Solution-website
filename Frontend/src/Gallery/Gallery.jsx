@@ -1,13 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { Helmet } from "react-helmet-async";
 import { Image as ImageIcon, AlertCircle } from "lucide-react";
+import { useGetGalleryImagesQuery } from "../Component/Redux/publicApi";
 const Gallery = () => {
   const { isDark } = useTheme(); // ← Theme Hook Added
 
-  const [images, setImages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    data: images = [],
+    isLoading: loading,
+    error: queryError,
+  } = useGetGalleryImagesQuery();
+  const error = queryError
+    ? queryError.data?.message ||
+      queryError.error ||
+      queryError.message ||
+      "Failed to load gallery images"
+    : null;
   const [selectedImage, setSelectedImage] = useState(null);
 
   // Fallback images (your original ones)
@@ -20,45 +29,9 @@ const Gallery = () => {
     "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=800&q=80",
   ];
 
-  useEffect(() => {
-    const fetchImages = async () => {
-      try {
-        const response = await fetch("https://api.aiknotsit.com/api/gallery");
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-
-        if (!result.success || !Array.isArray(result.data)) {
-          throw new Error("Invalid API response format");
-        }
-
-        // Extract all image URLs from the nested "images" arrays
-        const allImageUrls = result.data
-          .flatMap((item) => item.images || [])
-          .filter((url) => typeof url === "string" && url.trim() !== "");
-
-        setImages(allImageUrls);
-      } catch (err) {
-        console.error("Gallery fetch error:", err);
-        setError(err.message || "Failed to load gallery images");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchImages();
-  }, []);
-
   const displayImages = images.length > 0 ? images : fallbackImages;
 
   // ====================== THEME CLASSES ======================
-  const headingClass = isDark ? "text-white" : "text-gray-900";
-  const bodyClass = isDark ? "text-gray-300" : "text-gray-700";
-  const accentClass = isDark ? "text-[#8B6B4A]" : "text-gray-700";
-
   if (loading) {
     return (
       // <div

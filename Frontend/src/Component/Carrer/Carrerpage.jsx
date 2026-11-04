@@ -2,12 +2,25 @@ import React, { useEffect, useState } from "react";
 import { useTheme } from "../../context/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Helmet } from "react-helmet-async";
+import {
+  useApplyForJobMutation,
+  useGetJobOpeningsQuery,
+} from "../Redux/publicApi";
 function CareerPage() {
   const { isDark } = useTheme();
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    data: jobs = [],
+    isLoading: loading,
+    error: jobsError,
+  } = useGetJobOpeningsQuery();
+  const [applyForJob, { isLoading: submitting }] = useApplyForJobMutation();
+  const error = jobsError
+    ? jobsError.data?.message ||
+      jobsError.error ||
+      jobsError.message ||
+      "Failed to load job openings"
+    : null;
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,7 +35,6 @@ function CareerPage() {
   const [resumeFile, setResumeFile] = useState(null);
   const [resumeName, setResumeName] = useState("");
 
-  const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState({ type: "", text: "" });
 
   // Scroll to top button visibility
@@ -33,30 +45,6 @@ function CareerPage() {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Fetch jobs from API
-  useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const res = await fetch("https://api.aiknotsit.com/jobapply");
-
-        if (!res.ok) throw new Error("Failed to load job openings");
-
-        const data = await res.json();
-        setJobs(data.data || []);
-      } catch (err) {
-        setError(err.message);
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchJobs();
   }, []);
 
   const scrollToTop = () => {
@@ -126,7 +114,6 @@ function CareerPage() {
       return;
     }
 
-    setSubmitting(true);
     setSubmitMessage({ type: "", text: "" });
 
     try {
@@ -136,37 +123,23 @@ function CareerPage() {
       formDataToSend.append("phone", formData.phone);
       formDataToSend.append("resume", resumeFile); // ← Must match multer.single('resume')
 
-      const res = await fetch(
-        `https://api.aiknotsit.com/jobapplication/apply/${selectedJob._id}`,
-        {
-          method: "POST",
-          body: formDataToSend,
-          // Do NOT set Content-Type header → Let browser set boundary
-        },
-      );
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setSubmitMessage({
-          type: "success",
-          text: "🎉 Application submitted successfully!",
-        });
-        setTimeout(() => closeModal(), 1800);
-      } else {
-        setSubmitMessage({
-          type: "error",
-          text: data.message || "Failed to submit application",
-        });
-      }
+      await applyForJob({
+        jobId: selectedJob._id,
+        formData: formDataToSend,
+      }).unwrap();
+      setSubmitMessage({
+        type: "success",
+        text: "🎉 Application submitted successfully!",
+      });
+      setTimeout(() => closeModal(), 1800);
     } catch (err) {
       console.error(err);
       setSubmitMessage({
         type: "error",
-        text: "Network error. Please check your connection.",
+        text:
+          err?.data?.message ||
+          "Network error. Please check your connection.",
       });
-    } finally {
-      setSubmitting(false);
     }
   };
 

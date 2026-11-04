@@ -1,11 +1,21 @@
-import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import {
+  useGetJobApplicationsQuery,
+  useUpdateJobApplicationStatusMutation,
+} from "./jobApplicationsApi";
 
 const JobApplications = () => {
-  const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [jobTitle, setJobTitle] = useState("");
+  const { jobId } = useParams();
+  const {
+    data,
+    isLoading: loading,
+    error,
+  } = useGetJobApplicationsQuery(jobId || null);
+  const [updateApplicationStatus] = useUpdateJobApplicationStatusMutation();
+  const applications = data?.applications || [];
+  const jobTitle = data?.jobTitle || (jobId ? "Job Applications" : "All Job Applications");
+  const errorMessage =
+    error?.data?.message || error?.error || (error ? "Failed to fetch applications" : "");
 
   const statusOptions = [
     "Pending",
@@ -14,48 +24,6 @@ const JobApplications = () => {
     "Rejected",
     "Accepted",
   ];
-
-  const fetchApplications = async (jobId) => {
-    try {
-      setLoading(true);
-      const res = await fetch(
-        `https://api.aiknotsit.com/jobapplication/job/${jobId}`,
-      );
-      if (!res.ok) throw new Error("Failed to fetch applications");
-      const data = await res.json();
-      setApplications(data.data || []);
-      setJobTitle(data.jobTitle || "Job Applications");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAllApplications = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("https://api.aiknotsit.com/jobapplication/");
-      if (!res.ok) throw new Error("Failed to fetch applications");
-      const data = await res.json();
-      setApplications(data.data || []);
-      setJobTitle("All Job Applications");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const { jobId } = useParams();
-
-  useEffect(() => {
-    if (jobId) {
-      fetchApplications(jobId);
-    } else {
-      fetchAllApplications();
-    }
-  }, [jobId]);
 
   // ==================== IMPROVED CLOUDINARY RESUME DOWNLOAD ====================
   const handleDownloadResume = async (url, name) => {
@@ -109,27 +77,10 @@ const JobApplications = () => {
 
   const updateStatus = async (id, newStatus) => {
     try {
-      const res = await fetch(
-        `https://api.aiknotsit.com/jobapplication/${id}/status`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus }),
-        },
-      );
-
-      if (res.ok) {
-        setApplications((prev) =>
-          prev.map((app) =>
-            app._id === id ? { ...app, status: newStatus } : app,
-          ),
-        );
-      } else {
-        alert("Failed to update status");
-      }
+      await updateApplicationStatus({ id, status: newStatus }).unwrap();
     } catch (err) {
       console.error(err);
-      alert("Status update failed");
+      alert(err?.status ? "Failed to update status" : "Status update failed");
     }
   };
 
@@ -146,11 +97,11 @@ const JobApplications = () => {
           </p>
         )}
 
-        {error && (
-          <p className="text-red-500 text-center py-20 text-lg">{error}</p>
+        {errorMessage && (
+          <p className="text-red-500 text-center py-20 text-lg">{errorMessage}</p>
         )}
 
-        {!loading && !error && applications.length === 0 && (
+        {!loading && !errorMessage && applications.length === 0 && (
           <p className="text-center py-20 text-gray-500 text-xl">
             No applications found.
           </p>

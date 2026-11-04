@@ -14,8 +14,7 @@ import background2 from "../../assets/Images/backgroundimage2.webp";
 import background3 from "../../assets/Images/backgroundimage3.webp";
 import { Link } from "react-router-dom";
 import { HashLink } from "react-router-hash-link";
-
-const API_BASE_URL = "https://api.aiknotsit.com";
+import { useGetRecentWorkQuery } from "../Redux/publicApi";
 
 function Counter({ value, duration = 2.5 }) {
   const count = useMotionValue(0);
@@ -43,10 +42,24 @@ export default function RecentWork() {
   );
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const [activeFilter, setActiveFilter] = useState("All");
-  const [portfolioItems, setPortfolioItems] = useState([]);
-  const [allCategories, setAllCategories] = useState(["All"]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    data: portfolioItems = [],
+    isLoading: loading,
+    error: queryError,
+  } = useGetRecentWorkQuery();
+  const error = queryError
+    ? queryError.data?.message ||
+      queryError.error ||
+      queryError.message ||
+      "Failed to load projects. Please try again."
+    : null;
+  const allCategories = useMemo(
+    () => [
+      "All",
+      ...new Set(portfolioItems.flatMap((item) => item.categories)),
+    ],
+    [portfolioItems],
+  );
 
   const navigate = useNavigate();
 
@@ -93,44 +106,6 @@ export default function RecentWork() {
     }, 5000);
     return () => clearInterval(interval);
   }, [HERO_SLIDES.length]);
-
-  // Fetch Portfolio
-  useEffect(() => {
-    const fetchRecentWork = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await fetch(`${API_BASE_URL}/recentwork`);
-
-        if (!res.ok) throw new Error("Failed to fetch projects");
-
-        const result = await res.json();
-
-        const formattedData =
-          result.data?.map((item) => ({
-            id: item._id,
-            title: item.title,
-            categories: item.category ? [item.category.name] : ["General"],
-            image: item.images?.[0] || "https://via.placeholder.com/600x400",
-            link: item.link || "#",
-          })) || [];
-
-        setPortfolioItems(formattedData);
-        const cats = [
-          "All",
-          ...new Set(formattedData.flatMap((item) => item.categories)),
-        ];
-        setAllCategories(cats);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to load projects. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRecentWork();
-  }, []);
 
   const filteredItems = useMemo(() => {
     if (activeFilter === "All") return portfolioItems;

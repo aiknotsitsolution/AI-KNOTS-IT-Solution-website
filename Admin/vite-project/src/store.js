@@ -5,6 +5,7 @@ import technologyReducer from "./Pages/TechNews/techSlice/techSlice.js";
 import productReducer from "./Pages/Home/productSlice/productSlice.js";
 import portfolioReducer from "./Pages/Portfolio/portfolioslice.js";
 import jobReducer from "./Pages/createjob/jobSlice.js";
+import { jobApplicationsApi } from "./Pages/createjob/jobApplicationsApi.js";
 
 export const store = configureStore({
   reducer: {
@@ -14,5 +15,8 @@ export const store = configureStore({
     product: productReducer,
     portfolio: portfolioReducer,
     job: jobReducer,
+    [jobApplicationsApi.reducerPath]: jobApplicationsApi.reducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(jobApplicationsApi.middleware),
 });
